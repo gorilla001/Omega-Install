@@ -1,7 +1,5 @@
 redis:
     image: demoregistry.dataman-inc.com/srypoc/redis:3.0.5
-    ports:
-      - "6379:6379"
     command: redis-server --appendonly yes
     container_name: redis
 
@@ -10,19 +8,10 @@ rmq:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "4369:4369"
-      - "5671:5671"
-      - "5672:5672"
-      - "25672:25672"
-      - "15671:15671"
-      - "15672:15672"
     container_name: rmq
 
 mysql:
     image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
-    ports:
-      - "3306:3306"
     volumes:
       - ./omega-cluster/omega/omega/mysql_settings/my.cnf:/etc/my.cnf
     environment:
@@ -31,14 +20,6 @@ mysql:
 
 influxdb:
   image: demoregistry.dataman-inc.com/srypoc/influxdb:0.10
-  ports:
-    - "5007:5007/udp"
-    - "5008:5008/udp"
-    - "5007:5007/tcp"
-    - "5008:5008/tcp"
-  expose:
-    - "8090"
-    - "8099"
   environment:
     - PRE_CREATE_DB=shurenyun
   container_name: influxdb
@@ -48,16 +29,11 @@ elasticsearch:
   environment:
     - ES_MIN_MEM=1024M
     - ES_MAX_MEM=1024M
-  ports:
-    - "9200:9200"
-    - "9300:9300"
   container_name: elasticsearch
 
 logstash:
   container_name: logstash
   image: demoregistry.dataman-inc.com/srypoc/logstash:1.5.6
-  ports:
-    - "4999:4999"
   volumes:
     - ./omega-es/third_party/logstash/dataman.conf:/etc/logstash/conf.d/dataman.conf
     - ./omega-es/third_party/logstash/logstash.json:/usr/local/logstash/conf/logstash.json
@@ -72,8 +48,6 @@ harbor:
   volumes:
     - ./harbor/Deploy/Omega/ui/:/etc/ui
     - ./harbor/sql/:/sql
-  ports:
-    - 5005:5005
   environment:
     - MYSQL_HOST=mysql
     - MYSQL_PORT=3306
@@ -99,9 +73,6 @@ registry:
   image: demoregistry.dataman-inc.com/srypoc/registry:2.3.0
   volumes:
     - ./harbor/Deploy/Omega/registry/:/etc/registry/
-  ports:
-    - 5001:5001
-    - 5000:5000
   command:
     - /etc/registry/config.yml
   links:
@@ -113,13 +84,13 @@ drone:
     - /var/run/docker.sock:/var/run/docker.sock
     - /var/lib/drone/drone.sqlite:/var/lib/drone/drone.sqlite
     - ./drone/.env.sample:/go/src/github.com/drone/drone/.env
-  ports:
-    - 9898:9898
   links:
     - harbor
     - registry
     - mysql
+
 ####################################################################################################################
+
 cluster:
   container_name: cluster
   build: ./omega-cluster/omega/
@@ -130,11 +101,8 @@ cluster:
     - redis
     - rmq
 
-
 app:
   build: ./omega-app
-  ports:
-    - "6080:6080"
   container_name: app
   volumes:
     - ./omega-app/omega-app.yaml.sample:/etc/omega/omega-app.yaml:ro
@@ -150,8 +118,6 @@ app:
 metrics:
   container_name: metrics
   build: ./omega-metrics
-  ports:
-    - "9005:9005"
   volumes:
     - ./omega-metrics/omega-metrics.yaml.sample:/etc/omega/omega-metrics.yaml:ro
   links:
@@ -163,8 +129,6 @@ metrics:
 es:
   container_name: es
   build: ./omega-es
-  ports:
-    - "5009:5009"
   volumes:
     - ./omega-es/omega-es.yaml.sample:/etc/omega/omega-es.yaml:ro
   links:
@@ -174,8 +138,6 @@ es:
 billing:
   container_name: billing
   build: ./omega-billing
-  ports:
-    - "5013:5013"
   volumes:
     - ./omega-billing/omega-billing.yaml.sample:/etc/omega/omega-billing.yaml:ro
   links:
@@ -186,8 +148,6 @@ alert:
   container_name: alert
   build: ./sryun-alert
   net: "host"
-  ports:
-    - "5012:5012"
   environment:
     DB_ADDR: "192.168.1.159:3306"
     DB_USER: "root"
@@ -204,8 +164,6 @@ alert:
 
 glance:
   image: index.shurenyun.com/zqdou/nginx:1.9.6
-  ports:
-    - "8000:80"
   container_name: glance
   volumes:
     - ./frontend/glance:/usr/share/nginx/html:ro
@@ -226,8 +184,6 @@ glance:
 market:
   container_name: market
   image: index.shurenyun.com/zqdou/nginx:1.9.6
-  ports:
-    - "8001:80"
   links:
     - cluster
   volumes:
