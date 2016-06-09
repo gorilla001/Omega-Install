@@ -1,0 +1,237 @@
+redis:
+    image: demoregistry.dataman-inc.com/srypoc/redis:3.0.5
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    container_name: redis
+
+rmq:
+    image: demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "4369:4369"
+      - "5671:5671"
+      - "5672:5672"
+      - "25672:25672"
+      - "15671:15671"
+      - "15672:15672"
+    container_name: rmq
+
+mysql:
+    image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./omega-cluster/omega/omega/mysql_settings/my.cnf:/etc/my.cnf
+    environment:
+      - MYSQL_ROOT_PASSWORD=111111
+    container_name: mysql
+
+influxdb:
+  image: demoregistry.dataman-inc.com/srypoc/influxdb:0.10
+  ports:
+    - "5007:5007/udp"
+    - "5008:5008/udp"
+    - "5007:5007/tcp"
+    - "5008:5008/tcp"
+  expose:
+    - "8090"
+    - "8099"
+  environment:
+    - PRE_CREATE_DB=shurenyun
+  container_name: influxdb
+
+elasticsearch:
+  image: demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
+  environment:
+    - ES_MIN_MEM=1024M
+    - ES_MAX_MEM=1024M
+  ports:
+    - "9200:9200"
+    - "9300:9300"
+  container_name: elasticsearch
+
+logstash:
+  container_name: logstash
+  image: demoregistry.dataman-inc.com/srypoc/logstash:1.5.6
+  ports:
+    - "4999:4999"
+  volumes:
+    - ./omega-es/third_party/logstash/dataman.conf:/etc/logstash/conf.d/dataman.conf
+    - ./omega-es/third_party/logstash/logstash.json:/usr/local/logstash/conf/logstash.json
+  command: logstash -f /etc/logstash/conf.d/dataman.conf
+  links:
+    - elasticsearch
+
+glance:
+  image: index.shurenyun.com/zqdou/nginx:1.9.6
+  ports:
+    - "8000:80"
+  container_name: glance
+  volumes:
+    - ./frontend/glance:/usr/share/nginx/html:ro
+    - ./frontend/conf/dataman/nginx.conf:/etc/nginx/nginx.conf:ro
+    - ./frontend/conf/dataman/ssl/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
+    - ./frontend/conf/dataman/ssl/www.dataman.io-no-passphrase.key:/etc/nginx/www.dataman.io-no-passphrase.key:ro
+  links:
+    - cluster
+    - harbor
+    - app
+    - es 
+    - billing
+    - metrics
+    - elasticsearch
+  extra_hosts:
+    - "alert:192.168.1.159"
+
+market:
+  container_name: market
+  image: index.shurenyun.com/zqdou/nginx:1.9.6
+  ports:
+    - "8001:80"
+  links:
+    - cluster
+  volumes:
+    - ./webpage:/usr/share/nginx/html:ro
+    - ./frontend/conf/dataman/nginx-market.conf:/etc/nginx/nginx.conf:ro
+    - ./frontend/conf/dataman/ssl/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
+    - ./frontend/conf/dataman/ssl/www.dataman.io-no-passphrase.key:/etc/nginx/www.dataman.io-no-passphrase.key:ro
+
+cluster:
+  container_name: cluster
+  build: ./omega-cluster/omega/
+  volumes:
+    - ./omega-cluster/omega/:/code
+  links:
+    - mysql
+    - redis
+    - rmq
+
+harbor:
+  container_name: harbor
+  build: ./harbor/
+  volumes:
+    - ./harbor/Deploy/Omega/ui/:/etc/ui
+    - ./harbor/sql/:/sql
+  ports:
+    - 5005:5005
+  environment:
+    - MYSQL_HOST=mysql
+    - MYSQL_PORT=3306
+    - MYSQL_USR=root
+    - MYSQL_PWD=111111
+    - REGISTRY_URL=http://registry:5000
+    - CONFIG_PATH=/etc/ui/app.conf
+    - HARBOR_REG_URL=http://registry:5000
+    - HARBOR_ADMIN_PASSWORD=Harbor12345
+    - HARBOR_URL=http://harbor:5005
+    - AUTH_MODE=db_auth
+    - REDIS_HOST=redis
+    - REDIS_PORT=6379
+    - SQL_PATH=/sql
+  links:
+    - redis
+    - mysql
+  extra_hosts:
+    - "registry:192.168.1.159"
+
+app:
+  build: ./omega-app
+  ports:
+    - "6080:6080"
+  container_name: app
+  volumes:
+    - ./omega-app/omega-app.yaml.sample:/etc/omega/omega-app.yaml:ro
+  links:
+    - mysql
+    - redis
+    - rmq
+    - drone
+    - harbor
+    - registry
+  extra_hosts:
+    - "192.168.1.159:192.168.1.159"
+
+metrics:
+  container_name: metrics
+  build: ./omega-metrics
+  ports:
+    - "9005:9005"
+  volumes:
+    - ./omega-metrics/omega-metrics.yaml.sample:/etc/omega/omega-metrics.yaml:ro
+  links:
+    - app
+    - redis
+    - rmq
+    - influxdb
+
+es:
+  container_name: es
+  build: ./omega-es
+  ports:
+    - "5009:5009"
+  volumes:
+    - ./omega-es/omega-es.yaml.sample:/etc/omega/omega-es.yaml:ro
+  links:
+    - redis
+    - mysql
+    - elasticsearch
+
+alert:
+  container_name: alert
+  build: ./sryun-alert
+  net: "host"
+  ports:
+    - "5012:5012"
+  environment:
+    DB_ADDR: "192.168.1.159:3306"
+    DB_USER: "root"
+    DB_PASSWORD: "111111"
+    INFLUX_ADDR: "http://192.168.1.159:5008"
+    AUTH_ADDR: "http://192.168.1.159:8000/api/v3/user"
+    SMTP_ADDR: "http://192.168.1.159:8000/api/v3/email"
+    CACHE_ADDR: "192.168.1.159:6379"
+    APP_ADDR: "http://192.168.1.159:8000"
+    KAPACITOR_HOSTNAME: "192.168.1.159"
+    KAPACITOR_INFLUXDB: "http://192.168.1.159:5008"
+
+billing:
+  container_name: billing
+  build: ./omega-billing
+  ports:
+    - "5013:5013"
+  volumes:
+    - ./omega-billing/omega-billing.yaml.sample:/etc/omega/omega-billing.yaml:ro
+  links:
+    - mysql
+    - redis
+    - rmq
+
+drone:
+  container_name: drone
+  build: ./drone
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /var/lib/drone/drone.sqlite:/var/lib/drone/drone.sqlite
+    - ./drone/.env.sample:/go/src/github.com/drone/drone/.env
+  ports:
+    - 9898:9898
+  links:
+    - harbor
+    - registry
+    - mysql
+
+registry:
+  container_name: registry
+  image: demoregistry.dataman-inc.com/srypoc/registry:2.3.0
+  volumes:
+    - ./harbor/Deploy/Omega/registry/:/etc/registry/
+  ports:
+    - 5001:5001
+    - 5000:5000
+  command:
+    - /etc/registry/config.yml
+  links:
+    - harbor
