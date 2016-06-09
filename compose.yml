@@ -11,12 +11,14 @@ rmq:
     container_name: rmq
 
 mysql:
+    container_name: mysql
     image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
     volumes:
       - ./omega-cluster/omega/omega/mysql_settings/my.cnf:/etc/my.cnf
     environment:
       - MYSQL_ROOT_PASSWORD=111111
-    container_name: mysql
+    expose:
+      - 3306
 
 influxdb:
   image: demoregistry.dataman-inc.com/srypoc/influxdb:0.10
@@ -135,6 +137,7 @@ es:
     - redis
     - mysql
     - elasticsearch
+
 billing:
   container_name: billing
   build: ./omega-billing
@@ -144,6 +147,7 @@ billing:
     - mysql
     - redis
     - rmq
+
 alert:
   container_name: alert
   build: ./sryun-alert
