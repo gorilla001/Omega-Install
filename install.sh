@@ -14,7 +14,7 @@ if [ ! -d "omega-cluster" ];then
 fi
 
 if [ ! -f "omega-app/Dockerfile" ];then
-    git clone git clone git@github.com:Dataman-Cloud/omega-app.git
+    git clone git@github.com:Dataman-Cloud/omega-app.git
 fi
 
 if [ ! -f "omega-billing/Dockerfile" ];then
