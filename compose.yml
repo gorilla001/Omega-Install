@@ -1,14 +1,25 @@
 redis:
+    container_name: redis
     image: demoregistry.dataman-inc.com/srypoc/redis:3.0.5
     command: redis-server --appendonly yes
-    container_name: redis
+    expose:
+      - "6379" 
+    restart: always
 
 rmq:
+    container_name: rmq
     image: demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
-    container_name: rmq
+    expose:
+      - "4369"
+      - "5671"
+      - "5672"
+      - "25672"
+      - "15671"
+      - "15672"
+    restart: always
 
 mysql:
     container_name: mysql
@@ -18,13 +29,24 @@ mysql:
     environment:
       - MYSQL_ROOT_PASSWORD=111111
     expose:
-      - 3306
+      - "3306"
+    restart: always
+
+create_database:
+    container_name: create_database 
+    image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
+    links:
+        - mysql 
+    volumes:
+      - ./db.sh:/opt/db.sh
+    command: /opt/db.sh
 
 influxdb:
   image: demoregistry.dataman-inc.com/srypoc/influxdb:0.10
   environment:
     - PRE_CREATE_DB=shurenyun
   container_name: influxdb
+  restart: always
 
 elasticsearch:
   image: demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
@@ -32,6 +54,7 @@ elasticsearch:
     - ES_MIN_MEM=1024M
     - ES_MAX_MEM=1024M
   container_name: elasticsearch
+  restart: always
 
 logstash:
   container_name: logstash
@@ -42,6 +65,7 @@ logstash:
   command: logstash -f /etc/logstash/conf.d/dataman.conf
   links:
     - elasticsearch
+  restart: always
 
 ####################################################################################################################
 harbor:
@@ -69,6 +93,7 @@ harbor:
     - mysql
   extra_hosts:
     - "registry:192.168.1.159"
+  restart: always
 
 registry:
   container_name: registry
@@ -79,6 +104,7 @@ registry:
     - /etc/registry/config.yml
   links:
     - harbor
+  restart: always
 drone:
   container_name: drone
   build: ./drone
@@ -90,6 +116,7 @@ drone:
     - harbor
     - registry
     - mysql
+  restart: always
 
 ####################################################################################################################
 
@@ -102,6 +129,7 @@ cluster:
     - mysql
     - redis
     - rmq
+  restart: always
 
 app:
   build: ./omega-app
@@ -116,7 +144,8 @@ app:
     - harbor
     - registry
   extra_hosts:
-    - "192.168.1.159:192.168.1.159"
+    - "192.168.1.104:192.168.1.104"
+  restart: always
 metrics:
   container_name: metrics
   build: ./omega-metrics
@@ -127,7 +156,7 @@ metrics:
     - redis
     - rmq
     - influxdb
-
+  restart: always
 es:
   container_name: es
   build: ./omega-es
@@ -137,6 +166,7 @@ es:
     - redis
     - mysql
     - elasticsearch
+  restart: always
 
 billing:
   container_name: billing
@@ -147,13 +177,13 @@ billing:
     - mysql
     - redis
     - rmq
+  restart: always
 
 alert:
   container_name: alert
   build: ./sryun-alert
-  net: "host"
   environment:
-    DB_ADDR: "192.168.1.159:3306"
+    DB_ADDR: "mysql:3306"
     DB_USER: "root"
     DB_PASSWORD: "111111"
     INFLUX_ADDR: "http://192.168.1.159:5008"
@@ -163,6 +193,10 @@ alert:
     APP_ADDR: "http://192.168.1.159:8000"
     KAPACITOR_HOSTNAME: "192.168.1.159"
     KAPACITOR_INFLUXDB: "http://192.168.1.159:5008"
+  links:
+    - mysql
+
+  restart: always
 
 #####################################################################################################
 
@@ -182,8 +216,11 @@ glance:
     - billing
     - metrics
     - elasticsearch
-  extra_hosts:
-    - "alert:192.168.1.159"
+    - alert
+  ports:
+    - "80:80"
+
+  restart: always
 
 market:
   container_name: market
@@ -195,3 +232,4 @@ market:
     - ./frontend/conf/dataman/nginx-market.conf:/etc/nginx/nginx.conf:ro
     - ./frontend/conf/dataman/ssl/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
     - ./frontend/conf/dataman/ssl/www.dataman.io-no-passphrase.key:/etc/nginx/www.dataman.io-no-passphrase.key:ro
+  restart: always

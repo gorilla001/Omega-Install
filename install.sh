@@ -90,7 +90,7 @@ sed -i "s#CI_AUFS_OR_OVERLAY#$CI_AUFS_OR_OVERLAY#g" drone/.env.sample
 #app
 sed -i "s#APIURL#$DASHBOARD#g" omega-app/omega-app.yaml.sample
 sed -i "s#CLUSTER_URL#$CLUSTER_URL#g" omega-app/omega-app.yaml.sample
-sed -i "s#EXAMPLE#$EXAMPLE#g" docker-compose-backend.yml
+sed -i "s#EXAMPLE#$EXAMPLE#g" compose.yml
 
 #hosts
 sed -i '/registry/d' /etc/hosts
@@ -105,12 +105,29 @@ fi
 sed -i "s#APIURL#$DASHBOARD#g" omega-es/omega-es.yaml.sample
 
 #alert
-sed -i "s#APIURL#$DASHBOARD#g" docker-compose-backend.yml
-sed -i "s#IPADDR#$IPADDR#g" docker-compose-backend.yml
-sed -i "s#IPADDR#$IPADDR#g" docker-compose.yml
+sed -i "s#APIURL#$DASHBOARD#g" compose.yml
+sed -i "s#IPADDR#$IPADDR#g" compose.yml
+sed -i "s#IPADDR#$IPADDR#g" compose.yml
 
 #harbor
-sed -i "s#IPADDR#$IPADDR#g" docker-compose-ci.yml
+sed -i "s#IPADDR#$IPADDR#g" compose.yml
 
 
-docker-compose -f compose.yml up -d
+case "${1}" in
+    "up")
+        docker-compose -f compose.yml up -d
+        ;;
+    "start")
+        docker-compose -f compose.yml start -d
+        ;;
+    "stop")
+        docker-compose -f compose.yml down 
+        ;;
+    "rm")
+        echo "y" | docker-compose -f compose.yml rm 
+        ;;
+       *)
+        echo "./install [ up | start | stop | rm ]"
+        ;;
+esac
+        
