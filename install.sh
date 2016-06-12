@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 function install_pip {
    which pip 1>/dev/null 2>&1 
    if [ $? != 0 ];then
@@ -10,10 +11,12 @@ function install_pip {
 install_pip
 
 function install_docker {
-   which pip 1>/dev/null 2>&1 
-   if [ $? != 0 ];then
+   which docker 1>/dev/null 2>&1 
+   [ $? -ne 0 ] && {
        curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
-   fi
+   } || {
+       [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && install_docker
+   }   
 }
 
 install_docker
@@ -28,7 +31,7 @@ function install_compose {
 install_compose
 
 function init {
-    git submodule init && git submodule update
+    git submodule init && yes | git submodule update
     [ $? != 0 ] && exit
 }
 

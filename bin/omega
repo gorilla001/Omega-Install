@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# SERVICES=$(grep '^[a-zA-Z0-9_]*:$' /etc/omega/docker-compose.yml | tr -d ':'| grep -v database)
+SERVICES=("redis", "rmq", "mysql", "influxdb", "elasticsearch", "logstash", "harbor", "registry",
+          "drone", "cluster", "app", "metrics", "es", "billing", "alert", "glance", "market")
+
+for s in SERVICES
+do
+   echo $s
+done
+
+case "${1}" in
+    "list")
+        list_services
+        ;;
+    "status")
+        show_status
+        ;;
+    "repare")
+        repare
+        ;;
+    *)
+     echo "usage: omage [ status | repare ]"
+     ;;
+esac

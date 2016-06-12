@@ -132,8 +132,8 @@ cluster:
   restart: always
 
 app:
-  build: ./src/omega-app
   container_name: app
+  build: ./src/omega-app/
   volumes:
     - ./src/omega-app/omega-app.yaml.sample:/etc/omega/omega-app.yaml:ro
   links:
