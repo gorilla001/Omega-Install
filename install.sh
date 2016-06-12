@@ -103,7 +103,7 @@ function config {
     sed -i "s#IPADDR#$IPADDR#g" compose.yml
     
     #harbor
-    sed -i "s#IPADDR#$IPADDR#g" src/compose.yml
+    sed -i "s#IPADDR#$IPADDR#g" compose.yml
 }
 
 function up {
