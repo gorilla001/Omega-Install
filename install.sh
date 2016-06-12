@@ -31,7 +31,7 @@ function install_compose {
 install_compose
 
 function init {
-    git submodule init && yes | git submodule update
+    git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
     [ $? != 0 ] && exit
 }
 
