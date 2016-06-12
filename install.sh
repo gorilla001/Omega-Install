@@ -83,7 +83,7 @@ function config {
     #app
     sed -i "s#APIURL#$DASHBOARD#g" src/omega-app/omega-app.yaml.sample
     sed -i "s#CLUSTER_URL#$CLUSTER_URL#g" src/omega-app/omega-app.yaml.sample
-    sed -i "s#EXAMPLE#$EXAMPLE#g" src/compose.yml
+    sed -i "s#EXAMPLE#$EXAMPLE#g" compose.yml
     
     #hosts
     sed -i '/registry/d' /etc/hosts
