@@ -3,7 +3,7 @@
 function install_pip {
    which pip 1>/dev/null 2>&1 
    if [ $? != 0 ];then
-       apt-get install -y python-pip
+       apt-get update && apt-get install -y python-pip
    fi
 }
 
@@ -28,8 +28,8 @@ function install_compose {
 install_compose
 
 function init {
-    git submodule init
-    git submodule update
+    git submodule init && git submodule update
+    [ $? != 0 ] && exit
 }
 
 function config {
