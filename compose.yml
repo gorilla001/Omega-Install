@@ -157,8 +157,8 @@ metrics:
     - rmq
     - influxdb
   restart: always
-es:
-  container_name: es
+logging:
+  container_name: logging 
   build: ./src/omega-es
   volumes:
     - ./src/omega-es/omega-es.yaml.sample:/etc/omega/omega-es.yaml:ro
@@ -212,7 +212,7 @@ glance:
     - cluster
     - harbor
     - app
-    - es 
+    - logging 
     - billing
     - metrics
     - elasticsearch

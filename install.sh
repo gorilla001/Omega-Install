@@ -8,7 +8,6 @@ function install_pip {
    fi
 }
 
-install_pip
 
 function install_docker {
    which docker 1>/dev/null 2>&1 
@@ -19,7 +18,6 @@ function install_docker {
    }   
 }
 
-install_docker
 
 function install_compose {
    which docker-compose 1>/dev/null 2>&1 
@@ -28,9 +26,8 @@ function install_compose {
    fi
 }
 
-install_compose
 
-function init {
+function update_code {
     git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
     [ $? != 0 ] && exit
 }
@@ -47,7 +44,7 @@ function init {
 # }
 # install_golang
 
-function config {
+function update_config {
 
     NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
     
@@ -119,21 +116,40 @@ function config {
     
     #harbor
     sed -i "s#IPADDR#$IPADDR#g" compose.yml
+
+    #cluster
+    sed -i "s/services_mysql_1/mysql/g" src/omega-cluster/omega/omega/alembic.ini 
+
+    #licence
+    sed -i "s/LICENCEON/false/" src/frontend/glance/js/confdev.js 
 }
 
-function up {
+function compose_up {
     docker-compose -f compose.yml up -d
 }
 
-function down {
+function compose_down {
     docker-compose -f compose.yml down 
 }
 
-function main {
-    init
-    config
-    down
-    up
-}
+case "${1}" in
 
-main
+    "--full")
+        install_pip
+        install_docker
+        install_compose
+        update_code
+        update_config 
+        compose_down
+        compose_up
+        ;;
+    "--update")
+        update_code && update_config && compose_down && compose_up
+        ;;
+    "--service-only")
+        compose_down && compose_up 
+        ;;
+     *)
+       echo "usage: ./install [ --full | --update | --service-only ]"
+       ;;
+esac
