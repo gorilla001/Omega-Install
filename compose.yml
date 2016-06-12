@@ -37,9 +37,29 @@ create_database:
     image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
     links:
         - mysql 
-    volumes:
-      - ./db.sh:/opt/db.sh
-    command: /opt/db.sh
+    #volumes:
+    #  - ./db.sh:/opt/db.sh
+    #command: /opt/db.sh
+    command:
+      - mysql
+      - -h
+      - mysql
+      - -u
+      - root
+      - -p
+      - "111111"
+      - -e
+      - "create database alarm" 
+      - -e
+      - "create database oapp" 
+      - -e
+      - "create database alert" 
+      - -e
+      - "create database drone" 
+      - -e
+      - "create database billing" 
+      - -e
+      - "create database registry" 
 
 influxdb:
   image: demoregistry.dataman-inc.com/srypoc/influxdb:0.10
