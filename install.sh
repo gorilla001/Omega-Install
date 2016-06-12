@@ -80,22 +80,19 @@ function config {
     sed -i "s#IPADDR#$IPADDR#g" src/compose.yml
 }
 
-case "${1}" in
-    "up")
-        init
-        config
-        docker-compose -f compose.yml up -d
-        ;;
-    "down")
-        docker-compose -f compose.yml down 
-        ;;
-    "start")
-        docker-compose -f compose.yml start -d
-        ;;
-    "stop")
-        docker-compose -f compose.yml stop 
-        ;;
-       *)
-        echo "./install [ up | down | start | stop]"
-        ;;
-esac
+function up {
+    docker-compose -f compose.yml up -d
+}
+
+function down {
+    docker-compose -f compose.yml down 
+}
+
+function main {
+    init
+    config
+    down
+    up
+}
+
+main
