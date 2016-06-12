@@ -90,7 +90,7 @@ logstash:
 ####################################################################################################################
 harbor:
   container_name: harbor
-  build: ./harbor/
+  build: src/harbor/
   volumes:
     - src/harbor/Deploy/Omega/ui/:/etc/ui
     - src/harbor/sql/:/sql
