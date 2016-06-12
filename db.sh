@@ -1,11 +1,9 @@
 #!/bin/bash
 
-
-
-mysql -hmysql -uroot -p111111 --execute="create database alarm;"
-mysql -hmysql -uroot -p111111 --execute="create database oapp;"
-mysql -hmysql -uroot -p111111 --execute="create database alert;"
-mysql -hmysql -uroot -p111111 --execute="create database drone;"
-mysql -hmysql -uroot -p111111 --execute="create database billing;"
-mysql -hmysql -uroot -p111111 --execute="create database registry;"
+mysql -hmysql -uroot -p${MYSQL_ENV_MYSQL_ROOT_PASSWORD} --execute="create database alarm;" \
+                                                        --execute="create database oapp;" \
+                                                        --execute="create database alert;" \
+                                                        --execute="create database drone;" \
+                                                        --execute="create database billing;" \
+                                                        --execute="create database registry;" \
 
