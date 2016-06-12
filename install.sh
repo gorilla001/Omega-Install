@@ -32,6 +32,18 @@ function init {
     [ $? != 0 ] && exit
 }
 
+function install_golang {
+   which go 1>/dev/null 2>&1 
+   if [ $? != 0 ];then
+       apt-get update && apt-get install -y golang-go && { 
+          echo 'export GOPATH="/usr/share/go/"'  >> ~/.bash_profile
+          export GOPATH="/usr/share/go/:$(pwd)"
+          echo $GOPATH
+       } || exit
+   fi
+}
+install_golang
+
 function config {
 
     NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
