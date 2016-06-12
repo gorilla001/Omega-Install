@@ -35,17 +35,17 @@ function init {
     [ $? != 0 ] && exit
 }
 
-function install_golang {
-   which go 1>/dev/null 2>&1 
-   if [ $? != 0 ];then
-       apt-get update && apt-get install -y golang-go && { 
-          echo 'export GOPATH="/usr/share/go/"'  >> ~/.bash_profile
-          export GOPATH="/usr/share/go/:$(pwd)"
-          echo $GOPATH
-       } || exit
-   fi
-}
-install_golang
+# function install_golang {
+#    which go 1>/dev/null 2>&1 
+#    if [ $? != 0 ];then
+#        apt-get update && apt-get install -y golang-go && { 
+#           echo 'export GOPATH="/usr/share/go/"'  >> ~/.bash_profile
+#           export GOPATH="/usr/share/go/:$(pwd)"
+#           echo $GOPATH
+#        } || exit
+#    fi
+# }
+# install_golang
 
 function config {
 
