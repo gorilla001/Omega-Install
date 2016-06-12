@@ -1,45 +1,11 @@
 #!/bin/bash
 
 
-if [ ! -d "frontend" ]; then
-    git clone git@github.com:Dataman-Cloud/frontend.git
-fi
+function init {
+    git submodule init
+    git submodule update
+}
 
-if [ ! -d "webpage" ]; then
-    git clone git@github.com:Dataman-Cloud/webpage.git
-fi
-
-if [ ! -d "omega-cluster" ];then
-    git clone git@github.com:Dataman-Cloud/omega-cluster.git
-fi
-
-if [ ! -f "omega-app/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/omega-app.git
-fi
-
-if [ ! -f "omega-billing/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/omega-billing.git
-fi
-
-if [ ! -f "omega-metrics/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/omega-metrics.git
-fi
-
-if [ ! -f "omega-es/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/omega-es.git
-fi
-
-if [ ! -f "sryun-alert/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/sryun-alert.git
-fi
-
-if [ ! -f "harbor/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/harbor.git
-fi
-
-if [ ! -f "drone/Dockerfile" ];then
-    git clone git@github.com:Dataman-Cloud/drone.git
-fi
 
 NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
 
@@ -115,19 +81,20 @@ sed -i "s#IPADDR#$IPADDR#g" compose.yml
 
 case "${1}" in
     "up")
+        init
         docker-compose -f compose.yml up -d
+        ;;
+    "down")
+        docker-compose -f compose.yml down 
         ;;
     "start")
         docker-compose -f compose.yml start -d
         ;;
     "stop")
-        docker-compose -f compose.yml down 
-        ;;
-    "rm")
-        echo "y" | docker-compose -f compose.yml rm 
+        docker-compose -f compose.yml stop 
         ;;
        *)
-        echo "./install [ up | start | stop | rm ]"
+        echo "./install [ up | down | start | stop]"
         ;;
 esac
         
