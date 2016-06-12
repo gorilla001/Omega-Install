@@ -1,5 +1,31 @@
 #!/bin/bash
 
+function install_pip {
+   which pip 1>/dev/null 2>&1 
+   if [ $? != 0 ];then
+       apt-get install -y python-pip
+   fi
+}
+
+install_pip
+
+function install_docker {
+   which pip 1>/dev/null 2>&1 
+   if [ $? != 0 ];then
+       curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
+   fi
+}
+
+install_docker
+
+function install_compose {
+   which docker-compose 1>/dev/null 2>&1 
+   if [ $? != 0 ];then
+       pip install docker-compose==1.6.0
+   fi
+}
+
+install_compose
 
 function init {
     git submodule init
@@ -72,9 +98,9 @@ function config {
     sed -i "s#APIURL#$DASHBOARD#g" src/omega-es/omega-es.yaml.sample
     
     #alert
-    sed -i "s#APIURL#$DASHBOARD#g" src/compose.yml
-    sed -i "s#IPADDR#$IPADDR#g" src/compose.yml
-    sed -i "s#IPADDR#$IPADDR#g" src/compose.yml
+    sed -i "s#APIURL#$DASHBOARD#g" compose.yml
+    sed -i "s#IPADDR#$IPADDR#g" compose.yml
+    sed -i "s#IPADDR#$IPADDR#g" compose.yml
     
     #harbor
     sed -i "s#IPADDR#$IPADDR#g" src/compose.yml
