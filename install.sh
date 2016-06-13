@@ -4,6 +4,13 @@ NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^def
     
 NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
 
+function install_expect {
+   which expect 1>/dev/null 2>&1 
+   if [ $? != 0 ];then
+       apt-get update && apt-get install -y expect 
+   fi
+}
+
 function install_pip {
    which pip 1>/dev/null 2>&1 
    if [ $? != 0 ];then
@@ -11,6 +18,10 @@ function install_pip {
    fi
 }
 
+function install_tools {
+   install_expect
+   install_pip
+}
 
 function install_docker {
    which docker 1>/dev/null 2>&1 
@@ -32,7 +43,9 @@ function install_compose {
 
 function update_code {
     #git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    git submodule init && yes "yes" | git submodule update && git submodule foreach git pull origin master  && git submodule foreach git checkout master
+    git submodule init 
+    expect -c 'spawn git submodule update; expect "(yes/no)?"; send "yes\n";interact'
+    git submodule foreach git pull origin master  && git submodule foreach git checkout master
 }
 
 # function install_golang {
@@ -136,18 +149,19 @@ function visit_help {
     echo
     echo "Omega install finished. Welcome to use."
     echo
-    echo -en "\t*login:"
+    echo -en "\t-login:"
     echo -e "  http://${NET_IP}:8000/auth/login"
     echo 
-    echo -en "\t*manage:"
+    echo -en "\t-manage:"
     echo -e "  http://${NET_IP}:9000"
     echo 
+    echo "Enjoy."
 }
 
 case "${1}" in
 
     "--full")
-        install_pip
+        install_tools
         install_docker
         install_compose
         update_code
