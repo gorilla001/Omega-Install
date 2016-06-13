@@ -1,30 +1,40 @@
 [submodule "src/frontend"]
 	path = src/frontend
 	url = git@github.com:Dataman-Cloud/frontend.git
+	branch = master
 [submodule "src/webpage"]
 	path = src/webpage
 	url = git@github.com:Dataman-Cloud/webpage.git
+	branch = master
 [submodule "src/omega-cluster"]
 	path = src/omega-cluster
 	url = git@github.com:Dataman-Cloud/omega-cluster.git
+	branch = master
 [submodule "src/omega-app"]
 	path = src/omega-app
 	url = git@github.com:Dataman-Cloud/omega-app.git
+	branch = master
 [submodule "src/omega-billing"]
 	path = src/omega-billing
 	url = git@github.com:Dataman-Cloud/omega-billing.git
+	branch = master
 [submodule "src/omega-metrics"]
 	path = src/omega-metrics
 	url = git@github.com:Dataman-Cloud/omega-metrics.git
+	branch = master
 [submodule "src/omega-es"]
 	path = src/omega-es
 	url = git@github.com:Dataman-Cloud/omega-es.git
+	branch = master
 [submodule "src/sryun-alert"]
 	path = src/sryun-alert
 	url = git@github.com:Dataman-Cloud/sryun-alert.git
+	branch = master
 [submodule "src/harbor"]
 	path = src/harbor
 	url = git@github.com:Dataman-Cloud/harbor.git
+	branch = master
 [submodule "src/drone"]
 	path = src/drone
 	url = git@github.com:Dataman-Cloud/drone.git
+	branch = master
