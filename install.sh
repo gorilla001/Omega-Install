@@ -32,7 +32,7 @@ function install_compose {
 
 function update_code {
     #git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    git submodule init && git submodule update
+    git submodule init && yes | git submodule update || git submodule foreach git pull origin master  && git submodule foreach git checkout master
 }
 
 # function install_golang {
@@ -134,11 +134,13 @@ function compose_down {
 
 function visit_help {
     echo
-    echo -en "For login:"
-    echo -e "\thttp://${NET_IP}:8000/auth/login"
+    echo "Omega install finished. Welcome to use."
+    echo
+    echo -en "\t*login:"
+    echo -e "  http://${NET_IP}:8000/auth/login"
     echo 
-    echo -en "For manage:"
-    echo -e "\thttp://${NET_IP}:9000"
+    echo -en "\t*manage:"
+    echo -e "  http://${NET_IP}:9000"
     echo 
 }
 
