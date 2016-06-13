@@ -129,6 +129,8 @@ cluster:
     - mysql
     - redis
     - rmq
+  expose:
+    - 8888
   restart: always
 
 app:
@@ -186,15 +188,19 @@ alert:
     DB_ADDR: "mysql:3306"
     DB_USER: "root"
     DB_PASSWORD: "111111"
-    INFLUX_ADDR: "http://192.168.1.159:5008"
-    AUTH_ADDR: "http://192.168.1.159:8000/api/v3/user"
-    SMTP_ADDR: "http://192.168.1.159:8000/api/v3/email"
-    CACHE_ADDR: "192.168.1.159:6379"
-    APP_ADDR: "http://192.168.1.159:8000"
-    KAPACITOR_HOSTNAME: "192.168.1.159"
-    KAPACITOR_INFLUXDB: "http://192.168.1.159:5008"
+    INFLUX_ADDR: "http://influxdb:5008"
+    AUTH_ADDR: "http://cluster:80/api/v3/user"
+    SMTP_ADDR: "http://cluster:80/api/v3/email"
+    CACHE_ADDR: "redis:6379"
+    APP_ADDR: "http://app:8000"
+    KAPACITOR_HOSTNAME: "influxdb"
+    KAPACITOR_INFLUXDB: "http://influxdb:5008"
   links:
     - mysql
+    - influxdb
+    - cluster
+    - redis
+    - app
 
   restart: always
 

@@ -153,10 +153,10 @@ function visit_help {
     echo
     echo "Omega install finished. Welcome to use."
     echo
-    echo -en "\t-login:"
-    echo -e "  http://${NET_IP}:8000/auth/login"
+    echo -en "\tlogin:"
+    echo -e "  http://${NET_IP}:8000/auth/login  admin/Dataman1234"
     echo 
-    echo -en "\t-manage:"
+    echo -en "\tmanage:"
     echo -e "  http://${NET_IP}:9000"
     echo 
     echo "Enjoy."
@@ -179,7 +179,7 @@ case "${1}" in
         update_code && update_config && compose_down && compose_up & visit_help
         ;;
     "--service-only")
-        compose_down && compose_up & visit_help 
+        compose_down && compose_up && visit_help 
         ;;
      *)
        echo "usage: ./install [ --full | --update | --service-only ]"
