@@ -32,7 +32,7 @@ function install_compose {
 
 function update_code {
     #git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    git submodule init && yes | git submodule update || git submodule foreach git pull origin master  && git submodule foreach git checkout master
+    git submodule init && yes "yes" | git submodule update && git submodule foreach git pull origin master  && git submodule foreach git checkout master
 }
 
 # function install_golang {
