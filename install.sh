@@ -1,5 +1,8 @@
 #!/bin/bash
 
+NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
+    
+NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
 
 function install_pip {
    which pip 1>/dev/null 2>&1 
@@ -29,7 +32,6 @@ function install_compose {
 
 function update_code {
     git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    [ $? != 0 ] && exit
 }
 
 # function install_golang {
@@ -46,9 +48,6 @@ function update_code {
 
 function update_config {
 
-    NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
-    
-    NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
     
     EXAMPLE=${NET_IP}
     IPADDR=${NET_IP}
@@ -132,6 +131,16 @@ function compose_down {
     docker-compose -f compose.yml down 
 }
 
+function visit_help {
+    echo
+    echo -en "For login:"
+    echo -e "\thttp://${NET_IP}:8000/auth/login"
+    echo 
+    echo -en "For manage:"
+    echo -e "\thttp://${NET_IP}:9000"
+    echo 
+}
+
 case "${1}" in
 
     "--full")
@@ -142,14 +151,16 @@ case "${1}" in
         update_config 
         compose_down
         compose_up
+        visit_help
         ;;
     "--update")
-        update_code && update_config && compose_down && compose_up
+        update_code && update_config && compose_down && compose_up & visit_help
         ;;
     "--service-only")
-        compose_down && compose_up 
+        compose_down && compose_up & visit_help 
         ;;
      *)
        echo "usage: ./install [ --full | --update | --service-only ]"
        ;;
 esac
+
