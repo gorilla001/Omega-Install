@@ -131,6 +131,7 @@ cluster:
     - rmq
   expose:
     - 8888
+    - 8000
   restart: always
 
 app:

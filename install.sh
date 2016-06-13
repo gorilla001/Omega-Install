@@ -145,11 +145,16 @@ function compose_down {
     docker-compose -f compose.yml down 
 }
 
+function update_service {
+    [ "$1" == "all" ] && docker-compose -f compose.yml up -d || docker-compose -f compose.yml up -d "$1"
+}
+
 function install_dockerui {
-    docker run -d -p 9000:9000 --privileged -v /var/run/docker.sock:/var/run/docker.sock uifd/ui-for-docker
+    docker run -d -p 9000:9000 --restart=always --name="management" --privileged -v /var/run/docker.sock:/var/run/docker.sock uifd/ui-for-docker
 }
 
 function visit_help {
+    printf '=%.0s' $(seq `tput cols`)
     echo
     echo "Omega install finished. Welcome to use."
     echo
@@ -164,7 +169,7 @@ function visit_help {
 
 case "${1}" in
 
-    "--full")
+    --full)
         install_tools
         install_docker
         install_compose
@@ -175,14 +180,16 @@ case "${1}" in
         install_dockerui
         visit_help
         ;;
-    "--update")
-        update_code && update_config && compose_down && compose_up & visit_help
+    --upgrade)
+        update_code && update_config && compose_down && compose_up && visit_help
         ;;
-    "--service-only")
-        compose_down && compose_up && visit_help 
+    --update=?*)
+        service=$(echo "${1}" | cut -d"=" -f2)
+        update_service $service && visit_help
         ;;
      *)
-       echo "usage: ./install [ --full | --update | --service-only ]"
+       echo "usage: ./install [ --full | --upgrade | --update=all | stuff ]"
        ;;
+
 esac
 
