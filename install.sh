@@ -145,6 +145,10 @@ function compose_down {
     docker-compose -f compose.yml down 
 }
 
+function install_dockerui {
+    docker run -d -p 9000:9000 --privileged -v /var/run/docker.sock:/var/run/docker.sock uifd/ui-for-docker
+}
+
 function visit_help {
     echo
     echo "Omega install finished. Welcome to use."
@@ -168,6 +172,7 @@ case "${1}" in
         update_config 
         compose_down
         compose_up
+        install_dockerui
         visit_help
         ;;
     "--update")
