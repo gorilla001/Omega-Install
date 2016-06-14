@@ -12,7 +12,7 @@ if [ "$1" == "" ] || [ "$1" = "-h" ]; then
     echo "  --full                         full install(include docker, docker-compose and dataman cloud)."
     echo "                                 this options usually used for your first installation."
     echo "  --minimal                      minimal install. not implemented yet."
-    echo "  --update                       update code and rebuild contains for all services."
+    echo "  --update                       update all services."
     echo "  --update-service=service_name  update the specified service"
     echo 
     exit 1
@@ -22,66 +22,35 @@ fi
 #     
 # NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
 
-function install_expect {
-   which expect 1>/dev/null 2>&1 
-   if [ $? != 0 ];then
-       apt-get update && apt-get install -y expect 
-   fi
-}
+if [ -z "`which expect`" ]; then
+    apt-get update && apt-get install -y expect
+fi
 
-function install_pip {
-   which pip 1>/dev/null 2>&1 
-   if [ $? != 0 ];then
-       apt-get update && apt-get install -y python-pip
-   fi
-}
+if [ -z "`which pip`" ]; then
+    apt-get update && apt-get install -y python-pip
+fi
 
-function install_tools {
-   install_expect
-   install_pip
-}
+if [ -z "`which docker`" ]; then
+    curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
+else
+    [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && install_docker
+fi
 
-function install_docker {
-   which docker 1>/dev/null 2>&1 
-   [ $? -ne 0 ] && {
-       curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
-   } || {
-       [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && install_docker
-   }   
-}
+if [ -z "`which docker-compose`" ]; then
+    pip install docker-compose==1.6.0
+fi
 
-
-function install_compose {
-   which docker-compose 1>/dev/null 2>&1 
-   if [ $? != 0 ];then
-       pip install docker-compose==1.6.0
-   fi
-}
-
-
-function update_code {
+function update_repositories {
     #git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
     git submodule init 
     expect -c 'spawn git submodule update; expect "(yes/no)?"; send "yes\n";interact'
     git submodule foreach git pull origin master  && git submodule foreach git checkout master
 }
 
-# function install_golang {
-#    which go 1>/dev/null 2>&1 
-#    if [ $? != 0 ];then
-#        apt-get update && apt-get install -y golang-go && { 
-#           echo 'export GOPATH="/usr/share/go/"'  >> ~/.bash_profile
-#           export GOPATH="/usr/share/go/:$(pwd)"
-#           echo $GOPATH
-#        } || exit
-#    fi
-# }
-# install_golang
-
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
-function update_config {
+function update_settings {
 
     
     EXAMPLE=${NET_IP}
@@ -158,7 +127,7 @@ function update_config {
     sed -i "s/LICENCEON/false/" src/frontend/glance/js/confdev.js 
 }
 
-function create_database {
+function init_database {
     echo "Create database"
     docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
     until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
@@ -167,15 +136,15 @@ function create_database {
     done
     printf '\n'
 }
-function create_service {
+function create_services {
     docker-compose -f compose.yml create
 }
 
-function start_service {
+function start_services {
    docker-compose -f compose.yml start redis
    docker-compose -f compose.yml start rmq 
    docker-compose -f compose.yml start mysql 
-   create_database
+   init_database
    docker-compose -f compose.yml start influxdb 
    docker-compose -f compose.yml start elasticsearch 
    docker-compose -f compose.yml start logstash 
@@ -191,11 +160,11 @@ function start_service {
    docker-compose -f compose.yml start glance 
 }
 
-function remove_service {
+function remove_services {
     docker-compose -f compose.yml down 
 }
 
-function update_service {
+function update_services {
     if [ "$1" == "all" ];then
         create_service
         start_service
@@ -212,20 +181,7 @@ function install_shipyard {
     curl -sSL https://shipyard-project.com/deploy | PORT=9000 bash -s
 }
 
-wait_for_available() {
-    set +e
-    echo Waiting for Omega on $NET_IP:$PORT
-
-    docker pull ehazlett/curl > /dev/null 2>&1
-
-    until $(docker run --rm ehazlett/curl --output /dev/null --connect-timeout 1 --silent --head --fail http://$NET_IP:$PORT/ > /dev/null 2>&1); do
-        printf '.'
-        sleep 1
-    done
-    printf '\n'
-}
-
-function visit_help {
+function install_finish {
     echo
     echo "Omega install finished. Welcome to use."
     echo
@@ -238,35 +194,50 @@ function visit_help {
     echo "Enjoy."
 }
 
-case "${1}" in
+if [ "$1" == "--full" ];then
+    update_repositories
+    update_settings
+    create_services
+    start_services
+    install_shipyard
+    install_finish
+fi
 
-    --full)
-        install_tools
-        install_docker
-        install_compose
-        update_code
-        update_config 
-        remove_service 
-        create_service
-        start_service
-        install_shipyard
-        wait_for_available 
-        visit_help
-        ;;
-    --update)
-        update_code 
-        update_config 
-        remove_service
-        create_service
-        start_service 
-        wait_for_available 
-        visit_help
-        ;;
-    --update-service=?*)
-        service=$(echo "${1}" | cut -d"=" -f2)
-        update_service $service 
-        wait_for_available
-        visit_help
-        ;;
-esac
+function create_database {
+    echo "Create database"
+    docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
+    until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
+        printf '.'
+        sleep 1
+    done
+    printf '\n'
+
+# case "${1}" in
+# 
+#     --full)
+#         update_code
+#         update_config 
+#         remove_service 
+#         create_service
+#         start_service
+#         install_shipyard
+#         wait_for_available 
+#         visit_help
+#         ;;
+#     --update)
+#         update_code 
+#         update_config 
+#         remove_service
+#         create_service
+#         start_service 
+#         wait_for_available 
+#         visit_help
+#         ;;
+#     --update-service=?*)
+#         service=$(echo "${1}" | cut -d"=" -f2)
+#         update_service $service 
+#         wait_for_available
+#         visit_help
+#         ;;
+# esac
 
