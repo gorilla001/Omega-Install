@@ -1,5 +1,23 @@
 #!/bin/bash
 
+if [ "$1" == "" ] || [ "$1" = "-h" ]; then
+    echo 
+    echo "NAME:"
+    echo "  install.sh - install dataman cloud"
+    echo 
+    echo "USAGE:"
+    echo "  install.sh [options]"
+    echo 
+    echo "OPTIONS:"
+    echo "  --full                         full install(include docker, docker-compose and dataman cloud)."
+    echo "                                 this options usually used for your first installation."
+    echo "  --minimal                      minimal install. not implemented yet."
+    echo "  --update                       update code and rebuild contains for all services."
+    echo "  --update-service=service_name  update the specified service"
+    echo 
+    exit 1
+fi
+
 NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
     
 NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
@@ -139,16 +157,50 @@ function update_config {
     sed -i "s/LICENCEON/false/" src/frontend/glance/js/confdev.js 
 }
 
-function compose_up {
-    docker-compose -f compose.yml up -d
+function create_database {
+    echo "Create database"
+    docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
+    until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
+        printf '.'
+        sleep 1
+    done
+    printf '\n'
+}
+function create_service {
+    docker-compose -f compose.yml create
 }
 
-function compose_down {
+function start_service {
+   docker-compose -f compose.yml start redis
+   docker-compose -f compose.yml start rmq 
+   docker-compose -f compose.yml start mysql 
+   create_database
+   docker-compose -f compose.yml start influxdb 
+   docker-compose -f compose.yml start elasticsearch 
+   docker-compose -f compose.yml start logstash 
+   docker-compose -f compose.yml start harbor 
+   docker-compose -f compose.yml start registry 
+   docker-compose -f compose.yml start drone 
+   docker-compose -f compose.yml start cluster 
+   docker-compose -f compose.yml start app 
+   docker-compose -f compose.yml start metrics 
+   docker-compose -f compose.yml start logging 
+   docker-compose -f compose.yml start billing 
+   docker-compose -f compose.yml start alert 
+   docker-compose -f compose.yml start glance 
+}
+
+function remove_service {
     docker-compose -f compose.yml down 
 }
 
 function update_service {
-    [ "$1" == "all" ] && docker-compose -f compose.yml up -d || docker-compose -f compose.yml up -d "$1"
+    if [ "$1" == "all" ];then
+        create_service
+        start_service
+    else
+        docker-compose -f compose.yml up -d "$1"
+    fi
 }
 
 function install_dockerui {
@@ -173,7 +225,6 @@ wait_for_available() {
 }
 
 function visit_help {
-    printf '=%.0s' $(seq `tput cols`)
     echo
     echo "Omega install finished. Welcome to use."
     echo
@@ -194,29 +245,27 @@ case "${1}" in
         install_compose
         update_code
         update_config 
-        compose_down
-        compose_up
+        remove_service 
+        create_service
+        start_service
         install_shipyard
         wait_for_available 
         visit_help
         ;;
-    --upgrade)
+    --update)
         update_code 
         update_config 
-        compose_down 
-        compose_up 
+        remove_service
+        create_service
+        start_service 
         wait_for_available 
         visit_help
         ;;
-    --update=?*)
+    --update-service=?*)
         service=$(echo "${1}" | cut -d"=" -f2)
         update_service $service 
         wait_for_available
         visit_help
         ;;
-     *)
-       echo "usage: ./install [ --full | --upgrade | --update=all | stuff ]"
-       ;;
-
 esac
 
