@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$1" == "" ] || [ "$1" = "-h" ]; then
+if [ "$1" = "-h" ]; then
     echo 
     echo "NAME:"
     echo "  install.sh - install dataman cloud"
@@ -9,11 +9,8 @@ if [ "$1" == "" ] || [ "$1" = "-h" ]; then
     echo "  install.sh [options]"
     echo 
     echo "OPTIONS:"
-    echo "  --full                         full install(include docker, docker-compose and dataman cloud)."
-    echo "                                 this options usually used for your first installation."
-    echo "  --minimal                      minimal install. not implemented yet."
-    echo "  --update                       update all services."
-    echo "  --update-service=service_name  update the specified service"
+    echo "  -h              show usage"
+    echo "  update service  update the specified service"
     echo 
     exit 1
 fi
@@ -43,8 +40,9 @@ fi
 function update_repositories {
     #git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
     git submodule init 
-    expect -c 'spawn git submodule update; expect "(yes/no)?"; send "yes\n";interact'
-    git submodule foreach git pull origin master  && git submodule foreach git checkout master
+    #expect -c 'spawn git submodule update; expect "(yes/no)?"; send "yes\n";interact'
+    #git submodule foreach git pull origin master  && git submodule foreach git checkout master
+    git submodule update
 }
 
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
@@ -127,7 +125,7 @@ function update_settings {
     sed -i "s/LICENCEON/false/" src/frontend/glance/js/confdev.js 
 }
 
-function init_database {
+function update_database {
     echo "Create database"
     docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
     until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
@@ -194,7 +192,8 @@ function install_finish {
     echo "Enjoy."
 }
 
-xxxx_service {
+function update_services {
+    docker-compose -f compose.yml down
     docker-compose -f compose.yml up -d
 }
 
@@ -208,14 +207,16 @@ function create_database {
     printf '\n'
 }
 
-if [ "$1" == "--full" ];then
+if [ "$1" == "update" ];then
+    echo 
+else
     update_repositories
     update_settings
-    create_services
-    start_services
+    update_services
     install_shipyard
     install_finish
 fi
+   
 
 
 # case "${1}" in
