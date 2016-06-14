@@ -194,14 +194,9 @@ function install_finish {
     echo "Enjoy."
 }
 
-if [ "$1" == "--full" ];then
-    update_repositories
-    update_settings
-    create_services
-    start_services
-    install_shipyard
-    install_finish
-fi
+xxxx_service {
+    docker-compose -f compose.yml up -d
+}
 
 function create_database {
     echo "Create database"
@@ -211,6 +206,17 @@ function create_database {
         sleep 1
     done
     printf '\n'
+}
+
+if [ "$1" == "--full" ];then
+    update_repositories
+    update_settings
+    create_services
+    start_services
+    install_shipyard
+    install_finish
+fi
+
 
 # case "${1}" in
 # 

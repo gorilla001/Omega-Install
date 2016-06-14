@@ -32,14 +32,14 @@ mysql:
       - "3306"
     restart: always
 
-# database:
-#     container_name: database 
-#     image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
-#     links:
-#         - mysql 
-#     volumes:
-#       - ./db.sh:/opt/db.sh
-#     command: /opt/db.sh
+database:
+    container_name: database 
+    image: demoregistry.dataman-inc.com/srypoc/mysql:5.6
+    links:
+        - mysql 
+    volumes:
+      - ./db.sh:/opt/db.sh
+    command: /opt/db.sh
 
 influxdb:
   image: demoregistry.dataman-inc.com/srypoc/influxdb:0.10
