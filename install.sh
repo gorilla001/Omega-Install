@@ -126,9 +126,13 @@ function update_database {
 #
 function install_finish {
     echo
-    echo "Dataman Cloud install finished. Welcome to use."
-    echo
-    echo -e "http://${NET_IP}:8000/auth/login  admin/Dataman1234"
+    # echo "Dataman Cloud install finished. Welcome to use."
+    # echo
+    echo "Finished."
+    echo 
+    echo -e "Dataman Cloud available at http://${NET_IP}:8000/auth/login"
+    echo 
+    echo -e "username: admin passwd: Dataman1234"
     echo 
     echo "Enjoy."
     # echo -en "login:"
