@@ -1,20 +1,5 @@
 #!/bin/bash
 
-if [ "$1" = "-h" ]; then
-    echo 
-    echo "NAME:"
-    echo "  install.sh - install dataman cloud"
-    echo 
-    echo "USAGE:"
-    echo "  install.sh [options]"
-    echo 
-    echo "OPTIONS:"
-    echo "  -h              show usage"
-    echo "  update service  update the specified service"
-    echo 
-    exit 1
-fi
-
 # NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}'`
 #     
 # NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
@@ -126,7 +111,7 @@ function update_settings {
 }
 
 function update_database {
-    echo "Create database"
+    echo "Update database"
     docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
     until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
         printf '.'
@@ -134,62 +119,25 @@ function update_database {
     done
     printf '\n'
 }
-function create_services {
-    docker-compose -f compose.yml create
-}
 
-function start_services {
-   docker-compose -f compose.yml start redis
-   docker-compose -f compose.yml start rmq 
-   docker-compose -f compose.yml start mysql 
-   init_database
-   docker-compose -f compose.yml start influxdb 
-   docker-compose -f compose.yml start elasticsearch 
-   docker-compose -f compose.yml start logstash 
-   docker-compose -f compose.yml start harbor 
-   docker-compose -f compose.yml start registry 
-   docker-compose -f compose.yml start drone 
-   docker-compose -f compose.yml start cluster 
-   docker-compose -f compose.yml start app 
-   docker-compose -f compose.yml start metrics 
-   docker-compose -f compose.yml start logging 
-   docker-compose -f compose.yml start billing 
-   docker-compose -f compose.yml start alert 
-   docker-compose -f compose.yml start glance 
-}
-
-function remove_services {
-    docker-compose -f compose.yml down 
-}
-
-function update_services {
-    if [ "$1" == "all" ];then
-        create_service
-        start_service
-    else
-        docker-compose -f compose.yml up -d "$1"
-    fi
-}
-
-function install_dockerui {
-    docker run -d -p 9000:9000 --restart=always --name="management" --privileged -v /var/run/docker.sock:/var/run/docker.sock uifd/ui-for-docker
-}
-
-function install_shipyard {
-    curl -sSL https://shipyard-project.com/deploy | PORT=9000 bash -s
-}
-
+# function install_shipyard {
+#     curl -sSL https://shipyard-project.com/deploy | PORT=9000 bash -s
+# }
+#
 function install_finish {
     echo
-    echo "Omega install finished. Welcome to use."
+    echo "Dataman Cloud install finished. Welcome to use."
     echo
-    echo -en "login:"
-    echo -e "  http://${NET_IP}:8000/auth/login  admin/Dataman1234"
-    echo 
-    echo -en "manage:"
-    echo -e "  http://${NET_IP}:9000"  admin/shipyard
+    echo -e "http://${NET_IP}:8000/auth/login  admin/Dataman1234"
     echo 
     echo "Enjoy."
+    # echo -en "login:"
+    # echo -e "  http://${NET_IP}:8000/auth/login  admin/Dataman1234"
+    # echo 
+    # echo -en "manage:"
+    # echo -e "  http://${NET_IP}:9000"  admin/shipyard
+    # echo 
+    # echo "Enjoy."
 }
 
 function update_services {
@@ -197,54 +145,8 @@ function update_services {
     docker-compose -f compose.yml up -d
 }
 
-function create_database {
-    echo "Create database"
-    docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
-    until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
-        printf '.'
-        sleep 1
-    done
-    printf '\n'
-}
-
-if [ "$1" == "update" ];then
-    echo 
-else
-    update_repositories
-    update_settings
-    update_services
-    install_shipyard
-    install_finish
-fi
-   
-
-
-# case "${1}" in
-# 
-#     --full)
-#         update_code
-#         update_config 
-#         remove_service 
-#         create_service
-#         start_service
-#         install_shipyard
-#         wait_for_available 
-#         visit_help
-#         ;;
-#     --update)
-#         update_code 
-#         update_config 
-#         remove_service
-#         create_service
-#         start_service 
-#         wait_for_available 
-#         visit_help
-#         ;;
-#     --update-service=?*)
-#         service=$(echo "${1}" | cut -d"=" -f2)
-#         update_service $service 
-#         wait_for_available
-#         visit_help
-#         ;;
-# esac
-
+update_repositories
+update_settings
+update_services
+update_database 
+install_finish
