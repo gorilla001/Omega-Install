@@ -4,6 +4,8 @@ NET_IF=`netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^def
     
 NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
 
+PORT=8000
+
 function install_expect {
    which expect 1>/dev/null 2>&1 
    if [ $? != 0 ];then
@@ -153,16 +155,33 @@ function install_dockerui {
     docker run -d -p 9000:9000 --restart=always --name="management" --privileged -v /var/run/docker.sock:/var/run/docker.sock uifd/ui-for-docker
 }
 
+function install_shipyard {
+    curl -sSL https://shipyard-project.com/deploy | PORT=9000 bash -s
+}
+
+wait_for_available() {
+    set +e
+    echo Waiting for Omega on $NET_IP:$PORT
+
+    docker pull ehazlett/curl > /dev/null 2>&1
+
+    until $(docker run --rm ehazlett/curl --output /dev/null --connect-timeout 1 --silent --head --fail http://$NET_IP:$PORT/ > /dev/null 2>&1); do
+        printf '.'
+        sleep 1
+    done
+    printf '\n'
+}
+
 function visit_help {
     printf '=%.0s' $(seq `tput cols`)
     echo
     echo "Omega install finished. Welcome to use."
     echo
-    echo -en "\tlogin:"
+    echo -en "login:"
     echo -e "  http://${NET_IP}:8000/auth/login  admin/Dataman1234"
     echo 
-    echo -en "\tmanage:"
-    echo -e "  http://${NET_IP}:9000"
+    echo -en "manage:"
+    echo -e "  http://${NET_IP}:9000"  admin/shipyard
     echo 
     echo "Enjoy."
 }
@@ -177,15 +196,23 @@ case "${1}" in
         update_config 
         compose_down
         compose_up
-        install_dockerui
+        install_shipyard
+        wait_for_available 
         visit_help
         ;;
     --upgrade)
-        update_code && update_config && compose_down && compose_up && visit_help
+        update_code 
+        update_config 
+        compose_down 
+        compose_up 
+        wait_for_available 
+        visit_help
         ;;
     --update=?*)
         service=$(echo "${1}" | cut -d"=" -f2)
-        update_service $service && visit_help
+        update_service $service 
+        wait_for_available
+        visit_help
         ;;
      *)
        echo "usage: ./install [ --full | --upgrade | --update=all | stuff ]"
