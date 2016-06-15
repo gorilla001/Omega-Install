@@ -4,10 +4,6 @@
 #     
 # NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
 
-if [ -z "`which expect`" ]; then
-    apt-get update && apt-get install -y expect
-fi
-
 if [ -z "`which pip`" ]; then
     apt-get update && apt-get install -y python-pip
 fi
