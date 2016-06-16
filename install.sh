@@ -120,6 +120,10 @@ function update_database {
 #     curl -sSL https://shipyard-project.com/deploy | PORT=9000 bash -s
 # }
 #
+function install_cmdline_tools {
+    install ./bin/omega /usr/local/bin/
+	chmod +x /usr/local/bin/omega
+}
 function install_finish {
     echo
     # echo "Dataman Cloud install finished. Welcome to use."
@@ -149,4 +153,5 @@ update_repositories
 update_settings
 update_services
 update_database 
+install_cmdline_tools
 install_finish
