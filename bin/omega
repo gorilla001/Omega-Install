@@ -25,7 +25,7 @@ list_services(){
     do
 	    STATUS=$(docker inspect --format={{.State.Status}} $SERVICE)
 	    ID=$(docker inspect --format={{.Id}} $SERVICE)
-	    SERVICE_STAUTS+="printf '%s\t\t%s\t\t%s\n' $SERVICE $ID $STATUS;"
+	    SERVICE_STAUTS+="printf '%s\t\t%s\t\t%s\n' $SERVICE ${ID:0-12} $STATUS;"
             
     done
     eval "${SERVICE_STAUTS}" | column -t -s $'\t\t'
