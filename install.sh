@@ -121,6 +121,8 @@ function update_database {
 # }
 #
 function install_cmdline_tools {
+    pip install terminaltables > /dev/null 2>&1
+    pip install sh > /dev/null 2>&1
     install ./bin/omega /usr/local/bin/
 	chmod +x /usr/local/bin/omega
 }

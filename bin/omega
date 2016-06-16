@@ -1,52 +1,75 @@
-#!/bin/bash
+# #!/bin/bash
+# 
+# # SERVICES=$(grep '^[a-zA-Z0-9_]*:$' /etc/omega/docker-compose.yml | tr -d ':'| grep -v database)
+# SERVICES=("redis" "rmq" "mysql" "influxdb" "elasticsearch" "logstash" "harbor" "registry"
+#           "drone" "cluster" "app" "metrics" "logging" "billing" "alert" "glance")
+# 
+# STATUS="RUNNING"
+# 
+# show_status(){
+#     for service in "${SERVICES[@]}"
+#     do
+# 	    status=$(docker inspect --format={{.State.Status}} $service)
+#             if [ "$status" != "running" ];then
+# 		    STATUS="FAILED"
+# 	    fi
+#     done
+# 
+#     echo $STATUS
+# } 
+# 
+# SERVICE_STAUTS="printf 'SERVICE\t\tCONTAINER_ID\t\tSTATUS\n';"
+# 
+# list_services(){
+#     for SERVICE in "${SERVICES[@]}"
+#     do
+# 	    STATUS=$(docker inspect --format={{.State.Status}} $SERVICE)
+# 	    ID=$(docker inspect --format={{.Id}} $SERVICE)
+# 	    SERVICE_STAUTS+="printf '%s\t\t%s\t\t%s\n' $SERVICE ${ID:0-12} $STATUS;"
+#             
+#     done
+#     eval "${SERVICE_STAUTS}" | column -t -s $'\t\t'
+# }
+# 
+# repare_services(){
+# 	echo "reparing..."
+# }
+# 
+# case "${1}" in
+#     "list")
+#         list_services
+#         ;;
+#     "status")
+# 	    show_status
+#         ;;
+#     "repare")
+#         repare_services
+#         ;;
+#     *)
+#      echo "usage: omage [ status | repare ]"
+#      ;;
+# esac
 
-# SERVICES=$(grep '^[a-zA-Z0-9_]*:$' /etc/omega/docker-compose.yml | tr -d ':'| grep -v database)
-SERVICES=("redis" "rmq" "mysql" "influxdb" "elasticsearch" "logstash" "harbor" "registry"
-          "drone" "cluster" "app" "metrics" "logging" "billing" "alert" "glance")
+from terminaltables import AsciiTable
+from sh import docker  
 
-STATUS="RUNNING"
+SERVICES_LIST = [ "redis", "rmq", "mysql", "influxdb", "elasticsearch",
+                  "logstash", "harbor", "registry", "drone", "cluster",
+                  "app", "metrics", "logging", "billing", "alert", "glance"]
 
-show_status(){
-    for service in "${SERVICES[@]}"
-    do
-	    status=$(docker inspect --format={{.State.Status}} $service)
-            if [ "$status" != "running" ];then
-		    STATUS="FAILED"
-	    fi
-    done
+service_status = [ 
+        ['SERVICE', 'ID', "STATUS"],
+]
 
-    echo $STATUS
-} 
+for service in SERVICES_LIST:
+    ID = docker.inspect("--format={{.Id}}", service)
+    STATUS = docker.inspect("--format={{.State.Status}}", service)
+    item = [service.strip(), ID.strip(), STATUS.strip()] 
+    service_status.append(item)
 
-SERVICE_STAUTS="printf 'SERVICE\t\tCONTAINER_ID\t\tSTATUS\n';"
-
-list_services(){
-    for SERVICE in "${SERVICES[@]}"
-    do
-	    STATUS=$(docker inspect --format={{.State.Status}} $SERVICE)
-	    ID=$(docker inspect --format={{.Id}} $SERVICE)
-	    SERVICE_STAUTS+="printf '%s\t\t%s\t\t%s\n' $SERVICE ${ID:0-12} $STATUS;"
-            
-    done
-    eval "${SERVICE_STAUTS}" | column -t -s $'\t\t'
-}
-
-repare_services(){
-	echo "reparing..."
-}
-
-case "${1}" in
-    "list")
-        list_services
-        ;;
-    "status")
-	    show_status
-        ;;
-    "repare")
-        repare_services
-        ;;
-    *)
-     echo "usage: omage [ status | repare ]"
-     ;;
-esac
+table = AsciiTable(service_status)
+table.inner_heading_row_border = True
+table.inner_footing_row_border = True
+table.inner_row_border = True
+print table.table
 
