@@ -50,6 +50,7 @@
 #      ;;
 # esac
 
+from terminaltables import SingleTable
 from terminaltables import AsciiTable
 from sh import docker  
 
@@ -58,18 +59,23 @@ SERVICES_LIST = [ "redis", "rmq", "mysql", "influxdb", "elasticsearch",
                   "app", "metrics", "logging", "billing", "alert", "glance"]
 
 service_status = [ 
-        ['SERVICE', 'ID', "STATUS"],
+        ["SERVICE", "ID","ENTRYPOINT",  "COMMAND", "PORTS", "STATUS"],
 ]
 
 for service in SERVICES_LIST:
     ID = docker.inspect("--format={{.Id}}", service)
     STATUS = docker.inspect("--format={{.State.Status}}", service)
-    item = [service.strip(), ID.strip(), STATUS.strip()] 
+    ENTRYPOINT = docker.inspect("--format={{.Config.Entrypoint}}", service).strip().strip("{[").strip("]}")
+    COMMAND = docker.inspect("--format={{.Config.Cmd}}", service)
+    PORTS = docker.inspect("--format='{{range $p, $conf := .Config.ExposedPorts}} {{$p}} {{end}}'", service).strip()
+    item = [service.strip(), ID.strip()[:12], ENTRYPOINT, COMMAND.strip().strip("{[").strip("]}"), PORTS, STATUS.strip()] 
     service_status.append(item)
 
-table = AsciiTable(service_status)
-table.inner_heading_row_border = True
-table.inner_footing_row_border = True
+table = SingleTable(service_status)
+# table.inner_heading_row_border = True
+# table.inner_footing_row_border = True
+table.inner_heading_row_border = False
 table.inner_row_border = True
+table.padding_right = 2
 print table.table
 
