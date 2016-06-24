@@ -24,9 +24,8 @@ def list_services():
         STATUS = docker.inspect("--format={{.State.Status}}", SERVICE).strip()
         ENTRYPOINT = docker.inspect("--format={{range $ep := .Config.Entrypoint}}{{$ep}}{{end}}", SERVICE).strip().strip("{[").strip("]}")
         COMMAND = docker.inspect("--format={{range $cmd := .Config.Cmd}}{{ $cmd }}{{ end }}", SERVICE).strip()
-        # PORTS = docker.inspect("--format='{{range $p, $conf := .Config.ExposedPorts}} {{$p}} {{end}}'", SERVICE).strip()
+        PORTS = docker.inspect("--format='{{range $p, $conf := .Config.ExposedPorts}} {{$p}} {{end}}'", SERVICE).strip().replace(" ", "\n")
         IPADDR = docker.inspect("--format='{{ .NetworkSettings.IPAddress }}'", SERVICE).strip()  
-        PORTS = ""
         item = [SERVICE, ID, ENTRYPOINT, COMMAND, IPADDR, PORTS, STATUS] 
         service_status.append(item)
 
