@@ -227,15 +227,3 @@ glance:
   ports:
     - "8000:80"
   restart: always
-
-# market:
-#   container_name: market
-#   image: index.shurenyun.com/zqdou/nginx:1.9.6
-#   links:
-#     - cluster
-#   volumes:
-#     - ./src/webpage:/usr/share/nginx/html:ro
-#     - ./src/frontend/conf/dataman/nginx-market.conf:/etc/nginx/nginx.conf:ro
-#     - ./src/frontend/conf/dataman/ssl/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
-#     - ./src/frontend/conf/dataman/ssl/www.dataman.io-no-passphrase.key:/etc/nginx/www.dataman.io-no-passphrase.key:ro
-#   restart: always
