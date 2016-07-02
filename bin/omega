@@ -3,8 +3,9 @@
 import sys
 
 from terminaltables import SingleTable
-from terminaltables import AsciiTable
 from sh import docker
+from sh import ErrorReturnCode_1
+
 
 SERVICES_LIST = [ "redis", "rmq", "mysql", "influxdb", "elasticsearch",
                   "logstash", "harbor", "registry", "drone", "cluster",
@@ -12,6 +13,26 @@ SERVICES_LIST = [ "redis", "rmq", "mysql", "influxdb", "elasticsearch",
 
 
 CLUSTER_STATUS = "RUNNING"
+
+
+def show_status(service):
+    service_status = [
+        ["SERVICE", "ID","ENTRYPOINT",  "COMMAND", "IPADDR", "PORTS", "STATUS"],
+    ]
+
+    try:
+        ID = docker.inspect("--format={{.Id}}", service).strip()[:12]
+        STATUS = docker.inspect("--format={{.State.Status}}", service).strip()
+        ENTRYPOINT = docker.inspect("--format={{range $ep := .Config.Entrypoint}}{{$ep}}{{end}}", service).strip().strip("{[").strip("]}")
+        COMMAND = docker.inspect("--format={{range $cmd := .Config.Cmd}}{{ $cmd }}{{ end }}", service).strip()
+        PORTS = docker.inspect("--format='{{range $p, $conf := .Config.ExposedPorts}} {{$p}} {{end}}'", service).strip().replace(" ", "\n")
+        IPADDR = docker.inspect("--format='{{ .NetworkSettings.IPAddress }}'", service).strip()  
+        item = [service, ID, ENTRYPOINT, COMMAND, IPADDR, PORTS, STATUS] 
+        service_status.append(item)
+    except ErrorReturnCode_1:
+        sys.stdout.write("no such service {}\n".format(service))
+
+    return service_status
 
 def list_services():
 
@@ -31,6 +52,9 @@ def list_services():
 
     return service_status
 
+def show_help():
+    sys.stdout.write("usage: dataman [ list | show [service] ]\n")
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == "list":
@@ -39,9 +63,19 @@ if __name__ == '__main__':
             table.inner_row_border = True
             table.padding_right = 2
             sys.stdout.write("{}\n".format(table.table))
+        elif sys.argv[1] == "show":
+            try:
+                table = SingleTable(show_status(sys.argv[2]))
+                table.inner_heading_row_border = False
+                table.inner_row_border = True
+                table.padding_right = 2
+                sys.stdout.write("{}\n".format(table.table))
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
         elif sys.argv[1] == "status":
             sys.stdout.write("{}\n".format(CLUSTER_STATUS))
+
     else:
-        sys.stdout.write("usage: dataman [ status | list ]\n")
+        show_help()
 
 
