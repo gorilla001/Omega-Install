@@ -74,7 +74,11 @@ if __name__ == '__main__':
                 sys.stdout.write("no service name specified.\n")
         elif sys.argv[1] == "status":
             sys.stdout.write("{}\n".format(CLUSTER_STATUS))
-
+        elif sys.argv[1] == "logs":
+            try:
+                sys.stdout.write("{}".format(docker.logs(sys.argv[2])))
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
     else:
         show_help()
 
