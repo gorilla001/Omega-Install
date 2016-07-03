@@ -106,26 +106,13 @@ function update_settings {
     sed -i "s/LICENCEON/false/" src/frontend/glance/js/confdev.js 
 }
 
-function update_database {
-    echo "Update database"
-    docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6 > /dev/null 2>&1
-    until $(docker run --link mysql -v $(pwd)/db.sh:/opt/db.sh --entrypoint=/opt/db.sh demoregistry.dataman-inc.com/srypoc/mysql:5.6  > /dev/null 2>&1);do 
-        printf '.'
-        sleep 1
-    done
-    printf '\n'
-}
-
-# function install_shipyard {
-#     curl -sSL https://shipyard-project.com/deploy | PORT=9000 bash -s
-# }
-#
 function install_cmdline_tools {
     pip install terminaltables > /dev/null 2>&1
     pip install sh > /dev/null 2>&1
     install ./bin/omega /usr/local/bin/
 	chmod +x /usr/local/bin/omega
 }
+
 function install_finish {
     echo
     # echo "Dataman Cloud install finished. Welcome to use."
@@ -154,6 +141,5 @@ function update_services {
 update_repositories
 update_settings
 update_services
-update_database 
 install_cmdline_tools
 install_finish
