@@ -14,106 +14,67 @@ else
     [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && install_docker
 fi
 
-if [ -z "`which docker-compose`" ]; then
-    pip install docker-compose==1.6.0
-fi
-
-function update_repositories {
-    # git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    git submodule init 
-    #expect -c 'spawn git submodule update; expect "(yes/no)?"; send "yes\n";interact'
-    #git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    git submodule update --remote 
-}
-
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
-function update_settings {
-
-    
-    EXAMPLE=${NET_IP}
-    IPADDR=${NET_IP}
-    CI_AUFS_OR_OVERLAY=aufs
-    DOCKER_AUTH_SITE=registry:5000
-    DASHBOARD=http://$EXAMPLE:8000
-    STREAMING=ws://$EXAMPLE:8000
-    MARKET=http://$EXAMPLE:8001
-    LOGSTASH=$IPADDR:4999
-    GF_BASE_URL=http://$EXAMPLE:5010
-    CLUSTER_URL=$EXAMPLE:8000
-    REGISTRY=$IPADDR
-    HARBOR=$IPADDR
-    
-    #cluster
-    sed -i "s#LOGSTASH#$LOGSTASH#g" src/omega-cluster/omega/omega/config.conf
-    sed -i "s#MARKET_URL#$MARKET#g" src/omega-cluster/omega/omega/config.conf
-    sed -i "s#DASHBOARD_URL#$DASHBOARD#g" src/omega-cluster/omega/omega/config.conf
-    sed -i "s#DOCKER_AUTH_SITE#$DOCKER_AUTH_SITE#g" src/omega-cluster/omega/omega/config.conf
-    
-    #frontend
-    sed -i "s#APIURL#$DASHBOARD#g" src/frontend/glance/js/confdev.js
-    sed -i "s#MARKET#$MARKET#g" src/frontend/glance/js/confdev.js
-    sed -i "s#STREAMING#$STREAMING#g" src/frontend/glance/js/confdev.js
-    sed -i "s#ENVIRONMENT#dev#g" src/frontend/glance/js/confdev.js
-    sed -i "s#OFFLINE#true#g" src/frontend/glance/js/confdev.js
-    sed -i "s#GF_BASE_URL#$GF_BASE_URL#g" src/frontend/glance/js/confdev.js
-    sed -i "s#LOCAL_DM_HOST#DM_HOST=$STREAMING/#g" src/frontend/glance/js/confdev.js
-    sed -i "s#BODY_DOMAIN##g" src/frontend/glance/js/confdev.js
-    
-    #webpage
-    sed -i "s#DASHBOARD#$DASHBOARD#g" src/webpage/conf.js
-    sed -i "s#APIURL#$DASHBOARD#g" src/webpage/conf.js
-    sed -i "s#BODY_DOMAIN##g" src/webpage/conf.js
-    sed -i "s#ENVIRONMENT#dev#g" src/webpage/conf.js
-    sed -i "s#MARKET##g" src/webpage/conf.js
-    sed -i "s#OFFLINE#true#g" src/webpage/conf.js
-    
-    #Drone
-    sed -i "s#REGISTRY#$REGISTRY#g" src/drone/.env.sample
-    sed -i "s#HARBOR#$HARBOR#g" src/drone/.env.sample
-    sed -i "s#CI_AUFS_OR_OVERLAY#$CI_AUFS_OR_OVERLAY#g" src/drone/.env.sample
-    
-    #app
-    sed -i "s#APIURL#$DASHBOARD#g" src/omega-app/omega-app.yaml.sample
-    sed -i "s#CLUSTER_URL#$CLUSTER_URL#g" src/omega-app/omega-app.yaml.sample
-    sed -i "s#EXAMPLE#$EXAMPLE#g" compose.yml
-    
-    #hosts
-    sed -i '/registry/d' /etc/hosts
-    sed -i '/harbor/d' /etc/hosts
-    echo "$REGISTRY registry" >> /etc/hosts
-    echo "$HARBOR   harbor"   >> /etc/hosts
-    if [ $IPADDR != $EXAMPLE ]; then
-      echo "$IPADDR   $EXAMPLE"   >> /etc/hosts
-    fi
-    
-    #es
-    sed -i "s#APIURL#$DASHBOARD#g" src/omega-es/omega-es.yaml.sample
-    
-    #alert
-    sed -i "s#APIURL#$DASHBOARD#g" compose.yml
-    sed -i "s#IPADDR#$IPADDR#g" compose.yml
-    sed -i "s#IPADDR#$IPADDR#g" compose.yml
-    
-    #harbor
-    sed -i "s#IPADDR#$IPADDR#g" compose.yml
-
-    #cluster
-    sed -i "s/services_mysql_1/mysql/g" src/omega-cluster/omega/omega/alembic.ini 
-
-    #licence
-    sed -i "s/LICENCEON/false/" src/frontend/glance/js/confdev.js 
+uninstall_redis() {
+	docker rm -fv redis > /dev/null 2>&1
 }
 
-function install_cmdline_tools {
+install_redis() {
+	uninstall_redis
+        docker run -d \
+                  --expose=6379 \
+                  --restart=always \
+                  --name="redis" \
+		  demoregistry.dataman-inc.com/srypoc/redis:3.0.5 redis-server --appendonly yes
+}       
+
+uninstall_rmq() {
+	docker rm -fv rabbitmq > /dev/null 2>&1
+}
+
+install_rmq() {
+	uninstall_rmq
+        docker run -d \
+               	   --expose=4369 \
+		   --expose=5671 \
+		   --expose=5672 \
+		   --expose=25672 \
+		   --expose=15671 \
+		   --expose=15672 \
+               	   --restart=always \
+               	   --name="rabbitmq" \
+		   -e RABBITMQ_DEFAULT_USER=guest \
+	           -e RABBITMQ_DEFAULT_PASS=guest \
+               	   demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management 
+}
+
+uninstall_mysql() {
+	docker rm -f mysql > /dev/null 2>&1
+}
+
+install_mysql() {
+	uninstall_mysql
+        docker run -d \
+               	   --expose=3306 \
+               	   --restart=always \
+               	   --name="mysql" \
+		   -v $(pwd)/src/omega-cluster/omega/omega/mysql_settings/my.cnf:/etc/my.cnf:ro \
+		   -v $(pwd)/db/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro \
+		   -e MYSQL_ROOT_PASSWORD=111111 \
+               	   demoregistry.dataman-inc.com/srypoc/mysql:5.6 
+}
+
+
+install_cmdline_tools() {
     pip install terminaltables > /dev/null 2>&1
     pip install sh > /dev/null 2>&1
     install ./bin/omega /usr/local/bin/
 	chmod +x /usr/local/bin/omega
 }
 
-function install_finish {
+install_finish() {
     echo
     # echo "Dataman Cloud install finished. Welcome to use."
     # echo
@@ -133,13 +94,6 @@ function install_finish {
     # echo "Enjoy."
 }
 
-function update_services {
-    docker-compose -f compose.yml down
-    docker-compose -f compose.yml up -d
-}
-
-update_repositories
-update_settings
-update_services
-install_cmdline_tools
-install_finish
+install_redis
+install_rmq
+install_mysql
