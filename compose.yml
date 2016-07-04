@@ -139,9 +139,8 @@ app:
     - drone
     - harbor
     - registry
-  extra_hosts:
-    - "192.168.1.104:192.168.1.104"
   restart: always
+
 metrics:
   container_name: metrics
   build: ./src/omega-metrics
@@ -186,7 +185,7 @@ alert:
     AUTH_ADDR: "http://cluster:8888/api/v3/user"
     SMTP_ADDR: "http://cluster:8888/api/v3/email"
     CACHE_ADDR: "redis:6379"
-    APP_ADDR: "http://app:8000"
+    APP_ADDR: "http://app:6080"
     KAPACITOR_HOSTNAME: "influxdb"
     KAPACITOR_INFLUXDB: "http://influxdb:5008"
   links:
@@ -202,7 +201,7 @@ alert:
 
 frontend:
   image: index.shurenyun.com/zqdou/nginx:1.9.6
-  container_name: glance
+  container_name: frontend 
   volumes:
     - ./src/frontend/glance:/usr/share/nginx/html:ro
     - ./src/frontend/conf/dataman/nginx.conf:/etc/nginx/nginx.conf:ro
