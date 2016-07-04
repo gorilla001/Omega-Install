@@ -19,11 +19,11 @@ if [ -z "`which docker-compose`" ]; then
 fi
 
 function update_repositories {
-    #git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
+    # git submodule init && git submodule foreach git pull origin master  && git submodule foreach git checkout master
     git submodule init 
     #expect -c 'spawn git submodule update; expect "(yes/no)?"; send "yes\n";interact'
     #git submodule foreach git pull origin master  && git submodule foreach git checkout master
-    git submodule update
+    git submodule update --remote 
 }
 
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
