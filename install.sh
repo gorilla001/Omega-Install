@@ -24,6 +24,10 @@ if [ -z "`which npm`" ]; then
     apt-get update && apt-get install -y npm 
 fi
 
+if [ -z "`which nodejs`" ]; then
+    apt-get update && apt-get install -y nodejs 
+fi
+
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
@@ -337,12 +341,58 @@ start_alert() {
 }
 
 build_frontend() {
-	cd src/frontend/glance
-	sh compress.sh
-	cd ../..
-	tar -cvzf frontend.tar.gz frontend
-        docker build -t frontend:env -f frontend/dockerfiles/Dockerfile_runtime .
+	cd src
+	docker_file=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
+	update_settings=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
+	entrypoint=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
+	cat <<-'EOF' > ${update_settings}  
+	#!/bin/bash
+	sed -i "s#APIURL#$FRONTEND_APIURL#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#MARKET#$FRONTEND_MARKET#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#STREAMING#$FRONTEND_STREAMING#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#ENVIRONMENT#$FRONTEND_ENVIRONMENT#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#OFFLINE#$FRONTEND_OFFLINE#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#LOCAL_DM_HOST#$FRONTEND_LOCAL_DM_HOST#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#AGENT_URL#$FRONTEND_AGENT_URL#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#BODY_DOMAIN#$FRONTEND_BODY_DOMAIN#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#LICENCEON#$FRONTEND_LICENCEON#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#GROUP_URL#$FRONTEND_GROUP_URL#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#DEMO_URL#$FRONTEND_DEMO_URL#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#DEMO_USER#$FRONTEND_DEMO_USER#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#IMAGE_BASE_URL#$FRONTEND_IMAGE_BASE_URL#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#LOCAL_DM_HOST#$FRONTEND_LOCAL_DM_HOST#g" /usr/share/nginx/html/js/confdev.js
+	sed -i "s#AGENT_URL#$FRONTEND_AGENT_URL#g" /usr/share/nginx/html/js/confdev.js
+	EOF
+	cat <<-EOF > ${entrypoint}
+	#!/bin/bash
+	set -x
+	#check set config script
+	if [ ! -f /update.sh ]; then
+	    echo "update.sh doesn't exists." && exit
+	fi
+	# set js config
+	cd / && ./update.sh
+	# run nginx
+	nginx -g "daemon off;"
+	EOF
+	cat <<-EOF > ${docker_file}
+	FROM index.shurenyun.com/zqdou/nginx:1.9.6 
+	COPY frontend/glance /usr/share/nginx/html/
+	COPY frontend/conf/dataman/nginx.conf /etc/nginx/nginx.conf
+	COPY frontend/conf/dataman/ssl/ssl_certificate.crt /etc/nginx/ssl_certificate.crt
+	COPY frontend/conf/dataman/ssl/www.dataman.io-no-passphrase.key /etc/nginx/www.dataman.io-no-passphrase.key
+	COPY ${update_settings} /update.sh 
+	COPY ${entrypoint} /entrypoint.sh
+	WORKDIR /
+	RUN chmod +x update.sh entrypoint.sh
+	ENTRYPOINT ["./entrypoint.sh"]
+	EOF
+        docker build -t frontend:env -f ${docker_file} .
+	rm -f ${update_settings}
+	rm -f ${entrypoint}
+	rm -f ${docker_file}
 	cd ..
+	
 }
 
 start_frontend() {
@@ -358,6 +408,14 @@ start_frontend() {
 		   --link=elasticsearch \
 		   --link=alert \
 		   -p 8000:80 \
+		   -e FRONTEND_APIURL=http://${NET_IP}:8000 \
+		   -e FRONTEND_MARKET=http://${NET_IP}:8001 \
+		   -e FRONTEND_STREAMING=ws://${NET_IP}:8000 \
+		   -e FRONTEND_ENVIRONMENT=dev \
+		   -e FRONTEND_OFFLINE=true \
+		   -e FRONTEND_LOCAL_DM_HOST=ws://${NET_IP}:8000 \
+		   -e FRONTEND_OFFLINE=true \
+		   -e FRONTEND_LICENCEON=false \
 		   frontend:env
 }
 
