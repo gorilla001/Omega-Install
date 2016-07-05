@@ -23,10 +23,11 @@ uninstall_redis() {
 
 install_redis() {
 	uninstall_redis
+	docker pull demoregistry.dataman-inc.com/srypoc/redis:3.0.5
         docker run -d \
                   --expose=6379 \
                   --restart=always \
-                  --name="redis" \
+                  --name=redis \
 		  demoregistry.dataman-inc.com/srypoc/redis:3.0.5 redis-server --appendonly yes
 }       
 
@@ -36,6 +37,7 @@ uninstall_rmq() {
 
 install_rmq() {
 	uninstall_rmq
+	docker pull demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management
         docker run -d \
                	   --expose=4369 \
 		   --expose=5671 \
@@ -44,7 +46,7 @@ install_rmq() {
 		   --expose=15671 \
 		   --expose=15672 \
                	   --restart=always \
-               	   --name="rabbitmq" \
+               	   --name=rabbitmq \
 		   -e RABBITMQ_DEFAULT_USER=guest \
 	           -e RABBITMQ_DEFAULT_PASS=guest \
                	   demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management 
@@ -56,16 +58,84 @@ uninstall_mysql() {
 
 install_mysql() {
 	uninstall_mysql
+	docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6
         docker run -d \
                	   --expose=3306 \
                	   --restart=always \
-               	   --name="mysql" \
+               	   --name=mysql \
 		   -v $(pwd)/src/omega-cluster/omega/omega/mysql_settings/my.cnf:/etc/my.cnf:ro \
 		   -v $(pwd)/db/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro \
 		   -e MYSQL_ROOT_PASSWORD=111111 \
                	   demoregistry.dataman-inc.com/srypoc/mysql:5.6 
 }
 
+uninstall_influxdb() {
+	docker rm -f influxdb > /dev/null 2>&1
+}
+
+install_influxdb() {
+	uninstall_influxdb
+	docker pull demoregistry.dataman-inc.com/srypoc/influxdb:0.10
+	docker run -d \
+		   -e PRE_CREATE_DB=shurenyun \
+                   --restart=always \
+                   --name=influxdb \
+                   demoregistry.dataman-inc.com/srypoc/influxdb:0.10
+}
+
+uninstall_elasticsearch(){
+	docker rm -f elasticsearch > /dev/null 2>&1
+}
+
+install_elasticsearch() {
+	uninstall_elasticsearch
+	docker pull demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
+	docker run -d \
+                   --name=elasticsearch \
+                   --restart=always \
+                   -e ES_MIN_MEM=1024M \
+                   -e ES_MAX_MEM=1024M \
+                   demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
+}
+
+uninstall_logstash() {
+	docker rm -f logstash > /dev/null 2>&1
+}
+
+install_logstash() {
+	uninstall_logstash
+        docker pull demoregistry.dataman-inc.com/srypoc/logstash:1.5.6
+        docker run -d \
+                   --name=logstash \
+                   --restart=always \
+                   --link=elasticsearch \
+                   -v $(pwd)/src/omega-es/third_party/logstash/dataman.conf:/etc/logstash/conf.d/dataman.conf:ro \
+                   -v $(pwd)/src/omega-es/third_party/logstash/logstash.json:/usr/local/logstash/conf/logstash.json:ro \
+                   demoregistry.dataman-inc.com/srypoc/logstash:1.5.6 logstash -f /etc/logstash/conf.d/dataman.conf
+}
+
+function update_repositories {
+    git submodule init 
+    git submodule update --remote 
+}
+
+uninstall_harbor() {
+	docker rm -f harbor > /dev/null 2>&1
+}
+
+install_harbor() {
+	uninstall_harbor
+}
+
+uninstall_cluster(){
+	docker rm -f omega-cluster > /dev/null 2>&1
+}
+
+install_cluster() {
+	uninstall_cluster
+	cd src
+        docker build -t demoregistry.dataman-inc.com/library/python34:v0.1.063001 -f omega-cluster/dockerfiles/Dockerfile_compile_env .
+}
 
 install_cmdline_tools() {
     pip install terminaltables > /dev/null 2>&1
@@ -97,3 +167,9 @@ install_finish() {
 install_redis
 install_rmq
 install_mysql
+install_influxdb
+install_elasticsearch
+install_logstash
+update_repositories
+install_harbor
+install_cluster
