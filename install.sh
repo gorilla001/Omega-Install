@@ -11,7 +11,17 @@ fi
 if [ -z "`which docker`" ]; then
     curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
 else
-    [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && install_docker
+    [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && {
+   	curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
+    }	
+fi
+
+if [ -z "`which go`" ]; then
+    apt-get update && apt-get install -y golang 
+fi
+
+if [ -z "`which npm`" ]; then
+    apt-get update && apt-get install -y npm 
 fi
 
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
@@ -32,7 +42,7 @@ install_redis() {
 }       
 
 uninstall_rmq() {
-	docker rm -fv rabbitmq > /dev/null 2>&1
+	docker rm -fv rmq > /dev/null 2>&1
 }
 
 install_rmq() {
@@ -46,7 +56,7 @@ install_rmq() {
 		   --expose=15671 \
 		   --expose=15672 \
                	   --restart=always \
-               	   --name=rabbitmq \
+               	   --name=rmq \
 		   -e RABBITMQ_DEFAULT_USER=guest \
 	           -e RABBITMQ_DEFAULT_PASS=guest \
                	   demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management 
@@ -114,7 +124,7 @@ install_logstash() {
                    demoregistry.dataman-inc.com/srypoc/logstash:1.5.6 logstash -f /etc/logstash/conf.d/dataman.conf
 }
 
-function update_repositories {
+update_repositories() {
     git submodule init 
     git submodule update --remote 
 }
@@ -123,25 +133,239 @@ uninstall_harbor() {
 	docker rm -f harbor > /dev/null 2>&1
 }
 
-install_harbor() {
+build_harbor() {
+	base=$(pwd)
+	export GOPATH="/usr/local/go"
+	mkdir -p /usr/local/go/src/github.com/vmware
+	rm -rf /usr/local/go/src/github.com/vmware/harbor
+	cp -r $base/src/harbor /usr/local/go/src/github.com/vmware
+	cd /usr/local/go/src/github.com/vmware/harbor
+	make localbuild 
+	cp harbor $base/src/harbor 
+	cd $base/src
+        docker build -t harbor:env -f harbor/dockerfiles/Dockerfile_runtime . 
+	cd ..
+}
+start_harbor() {
 	uninstall_harbor
+        docker run -d  \
+		   --name=harbor \
+		   --restart=always \
+		   --link=redis \
+		   --link=mysql \
+		   --add-host=registry:${NET_IP} \
+		   -e MYSQL_HOST=mysql \
+		   -e MYSQL_PORT=3306 \
+		   -e MYSQL_USR=root \
+		   -e MYSQL_PWD=111111 \
+		   -e REGISTRY_URL=http://registry:5000 \
+		   -e CONFIG_PATH=/etc/ui/app.conf \
+		   -e HARBOR_REG_URL=http://registry:5000 \
+		   -e HARBOR_ADMIN_PASSWORD=Harbor12345 \
+		   -e HARBOR_URL=http://harbor:5005 \
+		   -e AUTH_MODE=db_auth \
+		   -e REDIS_HOST=redis \
+		   -e REDIS_PORT=6379 \
+		   -e SQL_PATH=/sql \
+		   harbor:env
 }
 
 uninstall_cluster(){
-	docker rm -f omega-cluster > /dev/null 2>&1
+	docker rm -f cluster > /dev/null 2>&1
 }
 
-install_cluster() {
-	uninstall_cluster
+build_cluster() {
 	cd src
         docker build -t demoregistry.dataman-inc.com/library/python34:v0.1.063001 -f omega-cluster/dockerfiles/Dockerfile_compile_env .
+	docker build -t cluster:env -f omega-cluster/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+start_cluster() {
+	uninstall_cluster
+	docker run -d \
+		   --name=cluster \
+		   --link=mysql \
+		   --link=redis \
+		   --link=rmq \
+		   --expose=8888 \
+		   --expose=8000 \
+		   --restart=always \
+		   --env-file=$(pwd)/src/omega-cluster/deploy/env \
+		   -e CLUSTER_REDIS_PW="" \
+	           -e CLUSTER_LOGSTASH=${NET_IP}:4999 \
+	           -e CLUSTER_MARKET_URL=${NET_IP}:8001 \
+	           -e CLUSTER_DASHBOARD_URL=${NET_IP}:8000 \
+	           -e CLUSTER_DOCKER_AUTH_SITE=${NET_IP} \
+		   cluster:env
+}
+
+build_app() {
+	base=$(pwd)
+	export GOPATH="/usr/local/go"
+	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
+	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-app
+	cp -r ${base}/src/omega-app /usr/local/go/src/github.com/Dataman-Cloud/
+	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-app
+	make build
+	cp bin/omega-app ${base}/src/omega-app/ 
+	cd ${base}/src
+        docker build -t omega-app:env -f omega-app/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+start_app() {
+	docker rm -f app > /dev/null 2>&1
+	docker run -d \
+		   --name=app \
+		   --restart=always \
+		   --link=mysql \
+		   --link=redis \
+		   --link=rmq \
+		   --link=cluster \
+		   --env-file=$(pwd)/src/omega-app/deploy/env \
+	           -e APP_CLUSTER_HOST=cluster:8888 \
+	           omega-app:env
+}
+
+build_metrics() {
+	base=$(pwd)
+	export GOPATH="/usr/local/go"
+	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
+	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
+	cp -r ${base}/src/omega-metrics /usr/local/go/src/github.com/Dataman-Cloud/
+	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
+	make build
+	cp omega-metrics ${base}/src/omega-metrics/ 
+	cd ${base}/src
+        docker build -t omega-metrics:env -f omega-metrics/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+build_logging() {
+	base=$(pwd)
+	export GOPATH="/usr/local/go"
+	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
+	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-es
+	cp -r ${base}/src/omega-es /usr/local/go/src/github.com/Dataman-Cloud/
+	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-es
+	make build
+	cp omega-es ${base}/src/omega-es/ 
+	cd ${base}/src
+        docker build -t omega-es:env -f omega-es/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+build_billing() {
+	base=$(pwd)
+	export GOPATH="/usr/local/go"
+	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
+	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-billing
+	cp -r ${base}/src/omega-billing /usr/local/go/src/github.com/Dataman-Cloud/
+	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-billing
+	make build
+	cp omega-billing ${base}/src/omega-billing/ 
+	cd ${base}/src
+        docker build -t omega-billing:env -f omega-billing/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+build_alert() {
+	base=$(pwd)
+	export GOPATH="/usr/local/go"
+	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
+	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/sryun-alert
+	cp -r ${base}/src/sryun-alert /usr/local/go/src/github.com/Dataman-Cloud/
+	cd /usr/local/go/src/github.com/Dataman-Cloud/sryun-alert
+	make build
+	cp bin/sryun-alert ${base}/src/sryun-alert/
+	cd ${base}/src
+        docker build -t sryun-alert:env -f sryun-alert/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+start_logging() {
+	docker rm -f logging > /dev/null 2>&1
+        docker run -d \
+		   --name=logging \
+		   --restart=always \
+		   --link=redis \
+		   --link=mysql \
+		   --link=elasticsearch \
+		   --env-file=$(pwd)/src/omega-es/deploy/env \
+		   omega-es:env
+}
+
+start_metrics() {
+	docker rm -f metrics > /dev/null 2>&1
+	docker run -d \
+		   --name=metrics \
+		   --restart=always \
+		   --link=app \
+		   --link=redis \
+		   --link=rmq \
+		   --link=influxdb \
+		   --env-file=$(pwd)/src/omega-metrics/deploy/env \
+	           -e METRICS_OMEGA_APP_HOST=http://app \
+		   omega-metrics:env
+}
+
+start_billing() {
+	docker rm -f billing > /dev/null 2>&1
+        docker run -d \
+		   --name=billing \
+		   --restart=always \
+		   --link=mysql \
+		   --link=redis \
+		   --link=rmq \
+		   --env-file=$(pwd)/src/omega-billing/deploy/env \
+		   omega-billing:env
+}
+
+start_alert() {
+	docker rm -f alert > /dev/null 2>&1
+        docker run -d \
+		   --name=alert \
+		   --restart=always \
+		   --link=mysql \
+		   --link=influxdb \
+		   --link=cluster \
+		   --link=redis \
+		   --link=app \
+		   --env-file=$(pwd)/src/sryun-alert/deploy/env \
+		   sryun-alert:env
+}
+
+build_frontend() {
+	cd src/frontend/glance
+	sh compress.sh
+	cd ../..
+	tar -cvzf frontend.tar.gz frontend
+        docker build -t frontend:env -f frontend/dockerfiles/Dockerfile_runtime .
+	cd ..
+}
+
+start_frontend() {
+        docker rm -f frontend > /dev/null 2>&1
+        docker run -d \
+		   --name=frontend \
+		   --restart=always \
+		   --link=cluster \
+		   --link=app \
+		   --link=logging \
+		   --link=billing \
+		   --link=metrics \
+		   --link=elasticsearch \
+		   --link=alert \
+		   -p 8000:80 \
+		   frontend:env
 }
 
 install_cmdline_tools() {
     pip install terminaltables > /dev/null 2>&1
     pip install sh > /dev/null 2>&1
     install ./bin/omega /usr/local/bin/
-	chmod +x /usr/local/bin/omega
+    chmod +x /usr/local/bin/omega
 }
 
 install_finish() {
@@ -164,12 +388,26 @@ install_finish() {
     # echo "Enjoy."
 }
 
-install_redis
-install_rmq
-install_mysql
-install_influxdb
-install_elasticsearch
-install_logstash
-update_repositories
-install_harbor
-install_cluster
+# install_redis
+# install_rmq
+# install_mysql
+# install_influxdb
+# install_elasticsearch
+# install_logstash
+# update_repositories
+# install_harbor
+# build_cluster
+# build_app
+# build_metrics
+# build_logging
+# build_billing
+# build_alert
+build_frontend
+# start_cluster
+# start_app
+# start_metrics
+# start_logging
+# start_billing
+# start_alert
+start_frontend
+
