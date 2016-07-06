@@ -31,12 +31,22 @@ fi
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
-uninstall_redis() {
-	docker rm -fv redis > /dev/null 2>&1
+pull_images() {
+	docker pull demoregistry.dataman-inc.com/srypoc/redis:3.0.5
+	docker pull demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management
+	docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6
+	docker pull demoregistry.dataman-inc.com/srypoc/influxdb:0.10
+	docker pull demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
+	docker pull demoregistry.dataman-inc.com/srypoc/logstash:1.5.6
+}
+
+pull_repositories() {
+    git submodule init 
+    git submodule update --remote 
 }
 
 install_redis() {
-	uninstall_redis
+	docker rm -fv redis > /dev/null 2>&1
 	docker pull demoregistry.dataman-inc.com/srypoc/redis:3.0.5
         docker run -d \
                   --expose=6379 \
@@ -45,12 +55,8 @@ install_redis() {
 		  demoregistry.dataman-inc.com/srypoc/redis:3.0.5 redis-server --appendonly yes
 }       
 
-uninstall_rmq() {
-	docker rm -fv rmq > /dev/null 2>&1
-}
-
 install_rmq() {
-	uninstall_rmq
+	docker rm -fv rmq > /dev/null 2>&1
 	docker pull demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management
         docker run -d \
                	   --expose=4369 \
@@ -66,12 +72,8 @@ install_rmq() {
                	   demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management 
 }
 
-uninstall_mysql() {
-	docker rm -f mysql > /dev/null 2>&1
-}
-
 install_mysql() {
-	uninstall_mysql
+	docker rm -f mysql > /dev/null 2>&1
 	docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6
         docker run -d \
                	   --expose=3306 \
@@ -83,12 +85,8 @@ install_mysql() {
                	   demoregistry.dataman-inc.com/srypoc/mysql:5.6 
 }
 
-uninstall_influxdb() {
-	docker rm -f influxdb > /dev/null 2>&1
-}
-
 install_influxdb() {
-	uninstall_influxdb
+	docker rm -f influxdb > /dev/null 2>&1
 	docker pull demoregistry.dataman-inc.com/srypoc/influxdb:0.10
 	docker run -d \
 		   -e PRE_CREATE_DB=shurenyun \
@@ -97,12 +95,8 @@ install_influxdb() {
                    demoregistry.dataman-inc.com/srypoc/influxdb:0.10
 }
 
-uninstall_elasticsearch(){
-	docker rm -f elasticsearch > /dev/null 2>&1
-}
-
 install_elasticsearch() {
-	uninstall_elasticsearch
+	docker rm -f elasticsearch > /dev/null 2>&1
 	docker pull demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
 	docker run -d \
                    --name=elasticsearch \
@@ -112,12 +106,8 @@ install_elasticsearch() {
                    demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
 }
 
-uninstall_logstash() {
-	docker rm -f logstash > /dev/null 2>&1
-}
-
 install_logstash() {
-	uninstall_logstash
+	docker rm -f logstash > /dev/null 2>&1
         docker pull demoregistry.dataman-inc.com/srypoc/logstash:1.5.6
         docker run -d \
                    --name=logstash \
@@ -126,15 +116,6 @@ install_logstash() {
                    -v $(pwd)/src/omega-es/third_party/logstash/dataman.conf:/etc/logstash/conf.d/dataman.conf:ro \
                    -v $(pwd)/src/omega-es/third_party/logstash/logstash.json:/usr/local/logstash/conf/logstash.json:ro \
                    demoregistry.dataman-inc.com/srypoc/logstash:1.5.6 logstash -f /etc/logstash/conf.d/dataman.conf
-}
-
-update_repositories() {
-    git submodule init 
-    git submodule update --remote 
-}
-
-uninstall_harbor() {
-	docker rm -f harbor > /dev/null 2>&1
 }
 
 build_harbor() {
@@ -151,7 +132,7 @@ build_harbor() {
 	cd ..
 }
 start_harbor() {
-	uninstall_harbor
+	docker rm -f harbor > /dev/null 2>&1
         docker run -d  \
 		   --name=harbor \
 		   --restart=always \
@@ -174,8 +155,77 @@ start_harbor() {
 		   harbor:env
 }
 
-uninstall_cluster(){
-	docker rm -f cluster > /dev/null 2>&1
+start_registry() {
+	docker rm -f registry > /dev/null 2>&1
+	docker pull demoregistry.dataman-inc.com/srypoc/registry:2.3.0
+	docker run -d \
+		   --name=registry \
+		   --link=harbor \
+		   --restart=always \
+		   -v $(pwd)/src/harbor/Deploy/Omega/registry/:/etc/registry/ \
+		   demoregistry.dataman-inc.com/srypoc/registry:2.3.0 /etc/registry/config.yml
+}
+
+build_drone() {
+	cd src
+	docker_file=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
+	cat > ${docker_file} <<-EOF
+	FROM catalog.shurenyun.com/library/drone_build:0.1
+	ENV GOPATH="/usr/share/go" 
+	ENV GO15VENDOREXPERIMENT 1
+	RUN go get -u github.com/kr/vexp && \ 
+            go get -u github.com/eknkc/amber/... && \
+	    go get -u github.com/eknkc/amber && \
+            go get -u github.com/jteeuwen/go-bindata/... && \
+            go get -u github.com/elazarl/go-bindata-assetfs/... && \
+            go get -u github.com/dchest/jsmin && \
+            go get -u github.com/franela/goblin && \
+            go get -u github.com/russross/blackfriday && \
+            go get -u github.com/carlescere/scheduler && \
+            go get -u github.com/ramr/go-reaper    
+	RUN rm -rf /usr/share/go/src/github.com/drone/drone
+	RUN mkdir -p /usr/share/go/src/github.com/drone/drone
+	EOF
+	docker build -t drone:build -f ${docker_file} .
+
+	#docker build -t drone:build -f dockerfiles/Dockerfile_compile_env .
+	# [ $? -eq 0 ] && exit
+	cat > drone/compile.sh <<-'EOF'
+	#!/bin/bash
+	mkdir -p /usr/share/go/src/github.com/drone
+	rm -rf /usr/share/go/src/github.com/drone/$SERVICE
+	cp -r $SERVICE /usr/share/go/src/github.com/drone/
+	cd /usr/share/go/src/github.com/drone/$SERVICE
+	make gen
+	make build_static
+	EOF
+        docker run --rm \
+		    -e SERVICE="drone" \
+		    -v $(pwd)/drone/:/usr/share/go/src/github.com/drone/drone/ \
+	            -w="/usr/share/go/src/github.com/drone/drone" drone:build make gen && make build_static 
+	# base=$(pwd)
+	# export GOPATH="/usr/local/go"
+	# mkdir -p /usr/local/go/src/github.com/drone
+	# rm -rf /usr/local/go/src/github.com/drone/drone
+	# cp -r $base/src/drone /usr/local/go/src/github.com/drone/
+	# cd /usr/local/go/src/github.com/drone/drone
+	# make gen
+	# make build_static
+	# cp drone_static $base/src/drone 
+	# cd $base/src
+	# docker build -t drone:env -f harbor/dockerfiles/Dockerfile_runtime .
+	# cd ..
+}
+
+start_drone() {
+	docker run -d \
+		   --name=drone \
+		   --restart=always \
+		   --link=harbor \
+		   --link=registry \
+		   --link=mysql \
+		   --env-file=$(pwd)/src/drone/deploy/env \
+		   drone:env
 }
 
 build_cluster() {
@@ -186,7 +236,7 @@ build_cluster() {
 }
 
 start_cluster() {
-	uninstall_cluster
+	docker rm -f cluster > /dev/null 2>&1
 	docker run -d \
 		   --name=cluster \
 		   --link=mysql \
@@ -446,26 +496,35 @@ install_finish() {
     # echo "Enjoy."
 }
 
-# install_redis
-# install_rmq
-# install_mysql
-# install_influxdb
-# install_elasticsearch
-# install_logstash
-# update_repositories
-# install_harbor
-# build_cluster
-# build_app
-# build_metrics
-# build_logging
-# build_billing
-# build_alert
-build_frontend
-# start_cluster
-# start_app
-# start_metrics
-# start_logging
-# start_billing
-# start_alert
-start_frontend
+pull_images
+pull_repositories
+install_redis
+install_rmq
+install_mysql
+install_influxdb
+install_elasticsearch
+install_logstash
+# 
+# build_harbor
+# start_harbor
+# 
+# start_registry
 
+# build_drone
+# start_drone
+
+build_cluster
+build_app
+build_metrics
+build_logging
+build_billing
+build_alert
+build_frontend
+start_cluster
+start_app
+start_metrics
+start_logging
+start_billing
+start_alert
+start_frontend
+install_finish
