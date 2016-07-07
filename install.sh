@@ -129,7 +129,7 @@ build_harbor() {
 	cp harbor $base/src/harbor 
 	cd $base/src
         docker build -t harbor:env -f harbor/dockerfiles/Dockerfile_runtime . 
-	cd ..
+	cd $base 
 }
 start_harbor() {
 	docker rm -f harbor > /dev/null 2>&1
@@ -168,41 +168,31 @@ start_registry() {
 
 build_drone() {
 	cd src
-	docker_file=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
-	cat > ${docker_file} <<-EOF
-	FROM catalog.shurenyun.com/library/drone_build:0.1
-	ENV GOPATH="/usr/share/go" 
-	ENV GO15VENDOREXPERIMENT 1
-	RUN go get -u github.com/kr/vexp && \ 
-            go get -u github.com/eknkc/amber/... && \
-	    go get -u github.com/eknkc/amber && \
-            go get -u github.com/jteeuwen/go-bindata/... && \
-            go get -u github.com/elazarl/go-bindata-assetfs/... && \
-            go get -u github.com/dchest/jsmin && \
-            go get -u github.com/franela/goblin && \
-            go get -u github.com/russross/blackfriday && \
-            go get -u github.com/carlescere/scheduler && \
-            go get -u github.com/ramr/go-reaper    
-	RUN rm -rf /usr/share/go/src/github.com/drone/drone
-	RUN mkdir -p /usr/share/go/src/github.com/drone/drone
-	EOF
-	docker build -t drone:build -f ${docker_file} .
+	image=$(tail -n 1 drone/dockerfiles/Dockerfile_compile_env | tr -d "#")
+	docker pull ${image}
+	# docker_file=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
+	# cat > ${docker_file} <<-EOF
+	# FROM ${image} 
+	# ENV GOPATH="/usr/share/go" 
+	# ENV GO15VENDOREXPERIMENT 1
+	# RUN rm -rf /usr/share/go/src/github.com/drone/drone
+	# RUN mkdir -p /usr/share/go/src/github.com/drone/drone
+	# EOF
+	# docker build -t drone:build -f ${docker_file} .
 
-	#docker build -t drone:build -f dockerfiles/Dockerfile_compile_env .
+	# docker build -t drone:build -f dockerfiles/Dockerfile_compile_env .
 	# [ $? -eq 0 ] && exit
 	cat > drone/compile.sh <<-'EOF'
 	#!/bin/bash
-	mkdir -p /usr/share/go/src/github.com/drone
-	rm -rf /usr/share/go/src/github.com/drone/$SERVICE
-	cp -r $SERVICE /usr/share/go/src/github.com/drone/
-	cd /usr/share/go/src/github.com/drone/$SERVICE
+	export GOPATH="/usr/share/go"
 	make gen
 	make build_static
 	EOF
         docker run --rm \
-		    -e SERVICE="drone" \
+		    -e SERVICE=drone \
 		    -v $(pwd)/drone/:/usr/share/go/src/github.com/drone/drone/ \
-	            -w="/usr/share/go/src/github.com/drone/drone" drone:build make gen && make build_static 
+	            -w="/usr/share/go/src/github.com/drone/drone" ${image} /bin/bash -c "bash -x compile.sh" 
+	cd ..
 	# base=$(pwd)
 	# export GOPATH="/usr/local/go"
 	# mkdir -p /usr/local/go/src/github.com/drone
@@ -218,20 +208,36 @@ build_drone() {
 }
 
 start_drone() {
+	docker rm -f drone > /dev/null 2>&1
 	docker run -d \
 		   --name=drone \
 		   --restart=always \
 		   --link=harbor \
 		   --link=registry \
 		   --link=mysql \
-		   --env-file=$(pwd)/src/drone/deploy/env \
+		   -e SERVER_ADDR=0.0.0.0:9898 \
+	           -e REMOTE_DRIVER=sryun \
+	           -e REMOTE_CONFIG=https://omdev.riderzen.com:10080?open=true&skip_verify=true \
+	           -e RC_SRY_REG_INSECURE=true \
+	           -e RC_SRY_REG_HOST=registry:5000 \
+	           -e PUBLIC_MODE=true \
+	           -e DATABASE_DRIVER=mysql \
+	           -e DATABASE_CONFIG="root:111111@tcp(mysql:3306)/drone?parseTime=true" \
+	           -e AGENT_URI=registry:5000/library/drone-exec:latest \
+	           -e PLUGIN_FILTER=registry:5000/library/* plugins/* registry.shurenyun.com/* registry.shurenyun.com/* devregistry.dataman-inc.com/library/* \
+	           -e PLUGIN_PREFIX=library/
+	           -e DOCKER_STORAGE=overlay \
+	           -e DOCKER_EXTRA_HOSTS=registry:REGISTRY harbor:HARBOR \
 		   drone:env
 }
 
 build_cluster() {
 	cd src
-        docker build -t demoregistry.dataman-inc.com/library/python34:v0.1.063001 -f omega-cluster/dockerfiles/Dockerfile_compile_env .
-	docker build -t cluster:env -f omega-cluster/dockerfiles/Dockerfile_runtime .
+	image="demoregistry.dataman-inc.com/library/python34:v0.1.063001"
+	docker pull ${image}
+        # docker build -t demoregistry.dataman-inc.com/library/python34:v0.1.063001 -f omega-cluster/dockerfiles/Dockerfile_compile_env .
+	# docker build -t cluster:env -f omega-cluster/dockerfiles/Dockerfile_runtime .
+	docker tag -f ${image} cluster:env 
 	cd ..
 }
 
@@ -352,15 +358,15 @@ start_logging() {
 
 start_metrics() {
 	docker rm -f metrics > /dev/null 2>&1
+	app=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" app)
 	docker run -d \
 		   --name=metrics \
 		   --restart=always \
-		   --link=app \
 		   --link=redis \
 		   --link=rmq \
 		   --link=influxdb \
 		   --env-file=$(pwd)/src/omega-metrics/deploy/env \
-	           -e METRICS_OMEGA_APP_HOST=http://app \
+	           -e METRICS_OMEGA_APP_HOST=http://${app} \
 		   omega-metrics:env
 }
 
@@ -378,15 +384,40 @@ start_billing() {
 
 start_alert() {
 	docker rm -f alert > /dev/null 2>&1
+	mysql=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" mysql)
+	influxdb=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" influxdb)
+	cluster=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" cluster)
+	redis=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" redis)
+	app=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" app)
         docker run -d \
 		   --name=alert \
 		   --restart=always \
-		   --link=mysql \
-		   --link=influxdb \
-		   --link=cluster \
-		   --link=redis \
-		   --link=app \
-		   --env-file=$(pwd)/src/sryun-alert/deploy/env \
+		   --net=host \
+		   -e ALERT_DB_DRIVER=mysql \
+           	   -e ALERT_KAPACITOR_INFLUXDB=http://${influxdb}:5008 \
+           	   -e ALERT_KAPACITOR_CONF=/etc/sryun-alert/kapacitor.conf \
+           	   -e ALERT_DB_PORT=3306 \
+           	   -e ALERT_DB_NAME=alert \
+           	   -e ALERT_RETENTIONPOLICY=default \
+           	   -e ALERT_INTERNAL_TOKEN_KEY=Sry-Svc-Token \
+           	   -e ALERT_INFLUX_ADDR=http://${influxdb}:5008 \
+           	   -e ALERT_CACHE_POLLSIZE=100 \
+           	   -e ALERT_INFLUX_SERIE=ALERT_EVENTS \
+           	   -e ALERT_KAPACITOR_HOSTNAME=${NET_IP} \
+           	   -e ALERT_MONITOR_TABLE=Slave_state \
+           	   -e ALERT_CACHE_ADDR=redis:6379 \
+           	   -e ALERT_DB_USER=root \
+           	   -e ALERT_DB_PASSWORD=111111 \
+           	   -e ALERT_INFLUX_PASSWORD=root \
+           	   -e ALERT_SMTP_ADDR=http://${cluster}:8888/api/v3/email \
+           	   -e ALERT_TRIFFIC_TABLE=app_req_rate \
+           	   -e ALERT_AUTH_ADDR=http://${cluster}:8888/api/v3/user \
+           	   -e ALERT_NET_HOST=0.0.0.0 \
+           	   -e ALERT_INFLUX_USERNAME=root \
+           	   -e ALERT_DB_HOST=${mysql} \
+           	   -e ALERT_APP_ADDR=http://${app}:6080 \
+           	   -e ALERT_NET_PORT=5012 \
+           	   -e ALERT_INFLUX_DATABASE=shurenyun \
 		   sryun-alert:env
 }
 
@@ -447,16 +478,16 @@ build_frontend() {
 
 start_frontend() {
         docker rm -f frontend > /dev/null 2>&1
+	alert=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" alert)
         docker run -d \
 		   --name=frontend \
 		   --restart=always \
 		   --link=cluster \
-		   --link=app \
 		   --link=logging \
 		   --link=billing \
 		   --link=metrics \
 		   --link=elasticsearch \
-		   --link=alert \
+		   --link=app \
 		   -p 8000:80 \
 		   -e FRONTEND_APIURL=http://${NET_IP}:8000 \
 		   -e FRONTEND_MARKET=http://${NET_IP}:8001 \
@@ -504,14 +535,14 @@ install_mysql
 install_influxdb
 install_elasticsearch
 install_logstash
-# 
-# build_harbor
-# start_harbor
-# 
-# start_registry
 
-# build_drone
-# start_drone
+build_harbor
+start_harbor
+
+start_registry
+
+build_drone
+start_drone
 
 build_cluster
 build_app

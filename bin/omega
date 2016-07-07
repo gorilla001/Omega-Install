@@ -9,7 +9,7 @@ from sh import ErrorReturnCode_1
 
 SERVICES_LIST = [ "redis", "rmq", "mysql", "influxdb", "elasticsearch",
                   "logstash", "harbor", "registry", "drone", "cluster",
-                  "app", "metrics", "logging", "billing", "alert", "glance"]
+                  "app", "metrics", "logging", "billing", "alert", "frontend"]
 
 
 CLUSTER_STATUS = "RUNNING"
