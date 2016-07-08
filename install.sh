@@ -200,10 +200,11 @@ build_drone() {
 
 start_drone() {
 	docker rm -f drone > /dev/null 2>&1
+	registry=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" registry)
+	harbor=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" harbor)
 	docker run -d \
 		   --name=drone \
 		   --restart=always \
-		   --link=harbor \
 		   --link=registry \
 		   --link=mysql \
 		   -e SERVER_ADDR=0.0.0.0:9898 \
@@ -213,12 +214,12 @@ start_drone() {
 	           -e RC_SRY_REG_HOST=registry:5000 \
 	           -e PUBLIC_MODE=true \
 	           -e DATABASE_DRIVER=mysql \
-	           -e DATABASE_CONFIG="root:111111@tcp(mysql:3306)/drone?parseTime=true" \
+	           -e DATABASE_CONFIG=root:111111@tcp\(mysql:3306\)/drone?parseTime=true \
 	           -e AGENT_URI=registry:5000/library/drone-exec:latest \
-	           -e PLUGIN_FILTER=registry:5000/library/* plugins/* registry.shurenyun.com/* registry.shurenyun.com/* devregistry.dataman-inc.com/library/* \
+	           -e PLUGIN_FILTER=registry:5000/library/*\tplugins/*\tregistry.shurenyun.com/*\tregistry.shurenyun.com/*\tdevregistry.dataman-inc.com/library/* \
 	           -e PLUGIN_PREFIX=library \
 	           -e DOCKER_STORAGE=overlay \
-	           -e DOCKER_EXTRA_HOSTS=registry:REGISTRY harbor:HARBOR \
+	           -e DOCKER_EXTRA_HOSTS=registry:${registry}\tharbor:${harbor} \
 		   drone:env
 }
 
@@ -239,7 +240,6 @@ start_cluster() {
 		   --link=redis \
 		   --link=rmq \
 		   --expose=8888 \
-		   --expose=8000 \
 		   --restart=always \
 		   --add-host=alert:${NET_IP} \
 		   --env-file=$(pwd)/src/omega-cluster/deploy/env \
@@ -396,7 +396,7 @@ start_alert() {
            	   -e ALERT_INFLUX_SERIE=ALERT_EVENTS \
            	   -e ALERT_KAPACITOR_HOSTNAME=${NET_IP} \
            	   -e ALERT_MONITOR_TABLE=Slave_state \
-           	   -e ALERT_CACHE_ADDR=redis:6379 \
+           	   -e ALERT_CACHE_ADDR=${redis}:6379 \
            	   -e ALERT_DB_USER=root \
            	   -e ALERT_DB_PASSWORD=111111 \
            	   -e ALERT_INFLUX_PASSWORD=root \
@@ -520,14 +520,13 @@ install_finish() {
     # echo "Enjoy."
 }
 
-# pull_images
-# pull_repositories
-# install_redis
-# install_rmq
-# install_mysql
-# install_influxdb
-# install_elasticsearch
-# install_logstash
+pull_repositories
+install_redis
+install_rmq
+install_mysql
+install_influxdb
+install_elasticsearch
+install_logstash
 
 build_harbor
 start_harbor
@@ -551,4 +550,5 @@ start_logging
 start_billing
 start_alert
 start_frontend
+install_cmdline_tools
 install_finish
