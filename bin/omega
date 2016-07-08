@@ -79,6 +79,34 @@ if __name__ == '__main__':
                 sys.stdout.write("{}".format(docker.logs(sys.argv[2])))
             except IndexError:
                 sys.stdout.write("no service name specified.\n")
+        elif sys.argv[1] == "install":
+            try:
+                service = sys.argv[2]
+                docker.pull("demoregistry.dataman-inc.com/srypoc/{}:3.0.5".format(service))
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
+        elif sys.argv[1] == "status":
+            try:
+                docker.inspect("--format={{.State.Status}}", sys.argv[2]).strip()
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
+        elif sys.argv[1] == "start":
+            try:
+                docker.start(sys.argv[2])
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
+        elif sys.argv[1] == "stop":
+            try:
+                docker.stop(sys.argv[2])
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
+        elif sys.argv[1] == "restart":
+            try:
+                docker.stop(sys.argv[2])
+                docker.start(sys.argv[2])
+            except IndexError:
+                sys.stdout.write("no service name specified.\n")
+
     else:
         show_help()
 

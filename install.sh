@@ -31,15 +31,6 @@ fi
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
-pull_images() {
-	docker pull demoregistry.dataman-inc.com/srypoc/redis:3.0.5
-	docker pull demoregistry.dataman-inc.com/srypoc/rabbitmq:3.6.0-management
-	docker pull demoregistry.dataman-inc.com/srypoc/mysql:5.6
-	docker pull demoregistry.dataman-inc.com/srypoc/influxdb:0.10
-	docker pull demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
-	docker pull demoregistry.dataman-inc.com/srypoc/logstash:1.5.6
-}
-
 pull_repositories() {
     git submodule init 
     git submodule update --remote 
@@ -217,7 +208,7 @@ start_drone() {
 		   --link=mysql \
 		   -e SERVER_ADDR=0.0.0.0:9898 \
 	           -e REMOTE_DRIVER=sryun \
-	           -e REMOTE_CONFIG=https://omdev.riderzen.com:10080?open=true&skip_verify=true \
+	           -e REMOTE_CONFIG="https://omdev.riderzen.com:10080?open=true&skip_verify=true" \
 	           -e RC_SRY_REG_INSECURE=true \
 	           -e RC_SRY_REG_HOST=registry:5000 \
 	           -e PUBLIC_MODE=true \
@@ -225,7 +216,7 @@ start_drone() {
 	           -e DATABASE_CONFIG="root:111111@tcp(mysql:3306)/drone?parseTime=true" \
 	           -e AGENT_URI=registry:5000/library/drone-exec:latest \
 	           -e PLUGIN_FILTER=registry:5000/library/* plugins/* registry.shurenyun.com/* registry.shurenyun.com/* devregistry.dataman-inc.com/library/* \
-	           -e PLUGIN_PREFIX=library/
+	           -e PLUGIN_PREFIX=library \
 	           -e DOCKER_STORAGE=overlay \
 	           -e DOCKER_EXTRA_HOSTS=registry:REGISTRY harbor:HARBOR \
 		   drone:env
@@ -236,8 +227,7 @@ build_cluster() {
 	image="demoregistry.dataman-inc.com/library/python34:v0.1.063001"
 	docker pull ${image}
         # docker build -t demoregistry.dataman-inc.com/library/python34:v0.1.063001 -f omega-cluster/dockerfiles/Dockerfile_compile_env .
-	# docker build -t cluster:env -f omega-cluster/dockerfiles/Dockerfile_runtime .
-	docker tag -f ${image} cluster:env 
+	docker build -t cluster:env -f omega-cluster/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
 
@@ -251,6 +241,7 @@ start_cluster() {
 		   --expose=8888 \
 		   --expose=8000 \
 		   --restart=always \
+		   --add-host=alert:${NET_IP} \
 		   --env-file=$(pwd)/src/omega-cluster/deploy/env \
 		   -e CLUSTER_REDIS_PW="" \
 	           -e CLUSTER_LOGSTASH=${NET_IP}:4999 \
@@ -488,6 +479,8 @@ start_frontend() {
 		   --link=metrics \
 		   --link=elasticsearch \
 		   --link=app \
+		   --link=harbor \
+		   --add-host=alert:${NET_IP} \
 		   -p 8000:80 \
 		   -e FRONTEND_APIURL=http://${NET_IP}:8000 \
 		   -e FRONTEND_MARKET=http://${NET_IP}:8001 \
@@ -527,14 +520,14 @@ install_finish() {
     # echo "Enjoy."
 }
 
-pull_images
-pull_repositories
-install_redis
-install_rmq
-install_mysql
-install_influxdb
-install_elasticsearch
-install_logstash
+# pull_images
+# pull_repositories
+# install_redis
+# install_rmq
+# install_mysql
+# install_influxdb
+# install_elasticsearch
+# install_logstash
 
 build_harbor
 start_harbor
