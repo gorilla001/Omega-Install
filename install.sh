@@ -183,7 +183,6 @@ build_drone() {
 		    -e SERVICE=drone \
 		    -v $(pwd)/drone/:/usr/share/go/src/github.com/drone/drone/ \
 	            -w="/usr/share/go/src/github.com/drone/drone" ${image} /bin/bash -c "bash -x compile.sh" 
-	cd ..
 	# base=$(pwd)
 	# export GOPATH="/usr/local/go"
 	# mkdir -p /usr/local/go/src/github.com/drone
@@ -194,19 +193,20 @@ build_drone() {
 	# make build_static
 	# cp drone_static $base/src/drone 
 	# cd $base/src
-	# docker build -t drone:env -f harbor/dockerfiles/Dockerfile_runtime .
-	# cd ..
+	docker build -t drone:env -f drone/dockerfiles/Dockerfile_runtime .
+	cd ..
 }
 
 start_drone() {
 	docker rm -f drone > /dev/null 2>&1
-	registry=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" registry)
-	harbor=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" harbor)
+	# registry=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" registry)
+	# harbor=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" harbor)
 	docker run -d \
 		   --name=drone \
 		   --restart=always \
 		   --link=registry \
 		   --link=mysql \
+		   --link=harbor \
 		   -e SERVER_ADDR=0.0.0.0:9898 \
 	           -e REMOTE_DRIVER=sryun \
 	           -e REMOTE_CONFIG="https://omdev.riderzen.com:10080?open=true&skip_verify=true" \
@@ -219,7 +219,7 @@ start_drone() {
 	           -e PLUGIN_FILTER=registry:5000/library/*\tplugins/*\tregistry.shurenyun.com/*\tregistry.shurenyun.com/*\tdevregistry.dataman-inc.com/library/* \
 	           -e PLUGIN_PREFIX=library \
 	           -e DOCKER_STORAGE=overlay \
-	           -e DOCKER_EXTRA_HOSTS=registry:${registry}\tharbor:${harbor} \
+	           -e DOCKER_EXTRA_HOSTS=registry:registry\tharbor:harbor \
 		   drone:env
 }
 
@@ -487,7 +487,7 @@ start_frontend() {
 		   -e FRONTEND_STREAMING=ws://${NET_IP}:8000 \
 		   -e FRONTEND_ENVIRONMENT=dev \
 		   -e FRONTEND_OFFLINE=true \
-		   -e FRONTEND_LOCAL_DM_HOST=ws://${NET_IP}:8000 \
+		   -e FRONTEND_LOCAL_DM_HOST=DM_HOST=ws://${NET_IP}:8000 \
 		   -e FRONTEND_OFFLINE=true \
 		   -e FRONTEND_LICENCEON=false \
 		   frontend:env
