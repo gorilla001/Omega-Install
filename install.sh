@@ -16,24 +16,13 @@ else
     }	
 fi
 
-if [ -z "`which go`" ]; then
-    apt-get update && apt-get install -y golang 
-fi
-
-# if [ -z "`which npm`" ]; then
-#     apt-get update && apt-get install -y npm 
-# fi
-# 
-# if [ -z "`which nodejs`" ]; then
-#     apt-get update && apt-get install -y nodejs 
-# fi
-
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
 pull_repositories() {
     git submodule init 
     git submodule update --remote 
+    [ $? -ne 0 ] && exit 
 }
 
 install_redis() {
@@ -111,13 +100,14 @@ install_logstash() {
 
 build_harbor() {
 	base=$(pwd)
-	export GOPATH="/usr/local/go"
-	mkdir -p /usr/local/go/src/github.com/vmware
-	rm -rf /usr/local/go/src/github.com/vmware/harbor
-	cp -r $base/src/harbor /usr/local/go/src/github.com/vmware
-	cd /usr/local/go/src/github.com/vmware/harbor
-	make localbuild 
-	cp harbor $base/src/harbor 
+	cd ${base}/src/harbor
+	complie=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
+	docker pull demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500
+	docker run --rm \
+                    -v $(pwd):/usr/local/go/src/github.com/vmware/harbor \
+                    -w /usr/local/go/src/github.com/vmware/harbor \
+                    -e GOPATH="/usr/local/go" \
+                    demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make localbuild"
 	cd $base/src
         docker build -t harbor:env -f harbor/dockerfiles/Dockerfile_runtime . 
 	cd $base 
@@ -161,46 +151,16 @@ build_drone() {
 	cd src
 	image=$(tail -n 1 drone/dockerfiles/Dockerfile_compile_env | tr -d "#")
 	docker pull ${image}
-	# docker_file=$(cat /dev/urandom | tr -dc 'a-fA-F0-9' | fold -w 8 | head -n 1)
-	# cat > ${docker_file} <<-EOF
-	# FROM ${image} 
-	# ENV GOPATH="/usr/share/go" 
-	# ENV GO15VENDOREXPERIMENT 1
-	# RUN rm -rf /usr/share/go/src/github.com/drone/drone
-	# RUN mkdir -p /usr/share/go/src/github.com/drone/drone
-	# EOF
-	# docker build -t drone:build -f ${docker_file} .
-
-	# docker build -t drone:build -f dockerfiles/Dockerfile_compile_env .
-	# [ $? -eq 0 ] && exit
-	cat > drone/compile.sh <<-'EOF'
-	#!/bin/bash
-	export GOPATH="/usr/share/go"
-	make gen
-	make build_static
-	EOF
         docker run --rm \
-		    -e SERVICE=drone \
 		    -v $(pwd)/drone/:/usr/share/go/src/github.com/drone/drone/ \
-	            -w="/usr/share/go/src/github.com/drone/drone" ${image} /bin/bash -c "bash -x compile.sh" 
-	# base=$(pwd)
-	# export GOPATH="/usr/local/go"
-	# mkdir -p /usr/local/go/src/github.com/drone
-	# rm -rf /usr/local/go/src/github.com/drone/drone
-	# cp -r $base/src/drone /usr/local/go/src/github.com/drone/
-	# cd /usr/local/go/src/github.com/drone/drone
-	# make gen
-	# make build_static
-	# cp drone_static $base/src/drone 
-	# cd $base/src
+		    -e GOPATH="/usr/share/go" \
+	            -w="/usr/share/go/src/github.com/drone/drone" ${image} /bin/bash -c "make gen && make build_static" 
 	docker build -t drone:env -f drone/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
 
 start_drone() {
 	docker rm -f drone > /dev/null 2>&1
-	# registry=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" registry)
-	# harbor=$(docker inspect "--format='{{ .NetworkSettings.IPAddress }}'" harbor)
 	docker run -d \
 		   --name=drone \
 		   --restart=always \
@@ -252,15 +212,17 @@ start_cluster() {
 }
 
 build_app() {
-	base=$(pwd)
-	export GOPATH="/usr/local/go"
-	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
-	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-app
-	cp -r ${base}/src/omega-app /usr/local/go/src/github.com/Dataman-Cloud/
-	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-app
-	make build
-	cp bin/omega-app ${base}/src/omega-app/ 
-	cd ${base}/src
+        base=$(pwd)
+	cd ${base}/src/omega-app
+	docker pull demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500
+	docker run --rm \
+                    -v $(pwd):/usr/local/go/src/github.com/Dataman-Cloud/omega-app \
+                    -w /usr/local/go/src/github.com/Dataman-Cloud/omega-app \
+                    -e GOPATH="/usr/local/go" \
+                    demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
+	install bin/omega-app ${base}/src/omega-app/ 
+	cd $base/src
+
         docker build -t omega-app:env -f omega-app/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
@@ -281,14 +243,24 @@ start_app() {
 
 build_metrics() {
 	base=$(pwd)
-	export GOPATH="/usr/local/go"
-	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
-	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
-	cp -r ${base}/src/omega-metrics /usr/local/go/src/github.com/Dataman-Cloud/
-	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
-	make build
-	cp omega-metrics ${base}/src/omega-metrics/ 
-	cd ${base}/src
+	cd ${base}/src/omega-metrics
+	docker pull demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500
+	docker run --rm \
+                    -v $(pwd):/usr/local/go/src/github.com/Dataman-Cloud/omega-metrics \
+                    -w /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics \
+                    -e GOPATH="/usr/local/go" \
+                    demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
+	cd $base/src
+
+	# base=$(pwd)
+	# export GOPATH="/usr/local/go"
+	# mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
+	# rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
+	# cp -r ${base}/src/omega-metrics /usr/local/go/src/github.com/Dataman-Cloud/
+	# cd /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
+	# make build
+	# cp omega-metrics ${base}/src/omega-metrics/ 
+	# cd ${base}/src
         docker build -t omega-metrics:env -f omega-metrics/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
@@ -520,35 +492,35 @@ install_finish() {
     # echo "Enjoy."
 }
 
-pull_repositories
-install_redis
-install_rmq
-install_mysql
-install_influxdb
-install_elasticsearch
-install_logstash
+# pull_repositories
+# install_redis
+# install_rmq
+# install_mysql
+# install_influxdb
+# install_elasticsearch
+# install_logstash
 
 build_harbor
 start_harbor
 
-start_registry
-
+# start_registry
+# 
 build_drone
 start_drone
-
-build_cluster
+# 
+# build_cluster
 build_app
 build_metrics
-build_logging
-build_billing
-build_alert
-build_frontend
-start_cluster
-start_app
-start_metrics
-start_logging
-start_billing
-start_alert
-start_frontend
-install_cmdline_tools
-install_finish
+# build_logging
+# build_billing
+# build_alert
+# build_frontend
+# start_cluster
+# start_app
+# start_metrics
+# start_logging
+# start_billing
+# start_alert
+# start_frontend
+# install_cmdline_tools
+# install_finish
