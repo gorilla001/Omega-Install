@@ -4,9 +4,9 @@
 #     
 # NET_IP=`ifconfig ${NET_IF} | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
 
-if [ -z "`which pip`" ]; then
-    apt-get update && apt-get install -y python-pip
-fi
+# if [ -z "`which pip`" ]; then
+#     apt-get update && apt-get install -y python-pip
+# fi
 
 if [ -z "`which docker`" ]; then
     curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
@@ -20,13 +20,13 @@ if [ -z "`which go`" ]; then
     apt-get update && apt-get install -y golang 
 fi
 
-if [ -z "`which npm`" ]; then
-    apt-get update && apt-get install -y npm 
-fi
-
-if [ -z "`which nodejs`" ]; then
-    apt-get update && apt-get install -y nodejs 
-fi
+# if [ -z "`which npm`" ]; then
+#     apt-get update && apt-get install -y npm 
+# fi
+# 
+# if [ -z "`which nodejs`" ]; then
+#     apt-get update && apt-get install -y nodejs 
+# fi
 
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
