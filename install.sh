@@ -251,58 +251,49 @@ build_metrics() {
                     -e GOPATH="/usr/local/go" \
                     demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
 	cd $base/src
-
-	# base=$(pwd)
-	# export GOPATH="/usr/local/go"
-	# mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
-	# rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
-	# cp -r ${base}/src/omega-metrics /usr/local/go/src/github.com/Dataman-Cloud/
-	# cd /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics
-	# make build
-	# cp omega-metrics ${base}/src/omega-metrics/ 
-	# cd ${base}/src
         docker build -t omega-metrics:env -f omega-metrics/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
 
 build_logging() {
 	base=$(pwd)
-	export GOPATH="/usr/local/go"
-	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
-	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-es
-	cp -r ${base}/src/omega-es /usr/local/go/src/github.com/Dataman-Cloud/
-	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-es
-	make build
-	cp omega-es ${base}/src/omega-es/ 
-	cd ${base}/src
+	cd ${base}/src/omega-es
+	docker pull demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500
+	docker run --rm \
+                    -v $(pwd):/usr/local/go/src/github.com/Dataman-Cloud/omega-es\
+                    -w /usr/local/go/src/github.com/Dataman-Cloud/omega-es\
+                    -e GOPATH="/usr/local/go" \
+                    demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
+	cd $base/src
         docker build -t omega-es:env -f omega-es/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
 
 build_billing() {
 	base=$(pwd)
-	export GOPATH="/usr/local/go"
-	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
-	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/omega-billing
-	cp -r ${base}/src/omega-billing /usr/local/go/src/github.com/Dataman-Cloud/
-	cd /usr/local/go/src/github.com/Dataman-Cloud/omega-billing
-	make build
-	cp omega-billing ${base}/src/omega-billing/ 
-	cd ${base}/src
+	cd ${base}/src/omega-billing
+	docker pull demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500
+	docker run --rm \
+                    -v $(pwd):/usr/local/go/src/github.com/Dataman-Cloud/omega-billing\
+                    -w /usr/local/go/src/github.com/Dataman-Cloud/omega-billing\
+                    -e GOPATH="/usr/local/go" \
+                    demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
+	cd $base/src
         docker build -t omega-billing:env -f omega-billing/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
 
 build_alert() {
 	base=$(pwd)
-	export GOPATH="/usr/local/go"
-	mkdir -p /usr/local/go/src/github.com/Dataman-Cloud
-	rm -rf /usr/local/go/src/github.com/Dataman-Cloud/sryun-alert
-	cp -r ${base}/src/sryun-alert /usr/local/go/src/github.com/Dataman-Cloud/
-	cd /usr/local/go/src/github.com/Dataman-Cloud/sryun-alert
-	make build
+	cd ${base}/src/sryun-alert
+	docker pull demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500
+	docker run --rm \
+                    -v $(pwd):/usr/local/go/src/github.com/Dataman-Cloud/sryun-alert \
+                    -w /usr/local/go/src/github.com/Dataman-Cloud/sryun-alert \
+                    -e GOPATH="/usr/local/go" \
+                    demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
 	cp bin/sryun-alert ${base}/src/sryun-alert/
-	cd ${base}/src
+	cd $base/src
         docker build -t sryun-alert:env -f sryun-alert/dockerfiles/Dockerfile_runtime .
 	cd ..
 }
@@ -492,35 +483,35 @@ install_finish() {
     # echo "Enjoy."
 }
 
-# pull_repositories
-# install_redis
-# install_rmq
-# install_mysql
-# install_influxdb
-# install_elasticsearch
-# install_logstash
+pull_repositories
+install_redis
+install_rmq
+install_mysql
+install_influxdb
+install_elasticsearch
+install_logstash
 
 build_harbor
 start_harbor
 
-# start_registry
-# 
+start_registry
+
 build_drone
 start_drone
-# 
-# build_cluster
+
+build_cluster
 build_app
 build_metrics
-# build_logging
-# build_billing
-# build_alert
-# build_frontend
-# start_cluster
-# start_app
-# start_metrics
-# start_logging
-# start_billing
-# start_alert
-# start_frontend
-# install_cmdline_tools
-# install_finish
+build_logging
+build_billing
+build_alert
+build_frontend
+start_cluster
+start_app
+start_metrics
+start_logging
+start_billing
+start_alert
+start_frontend
+install_cmdline_tools
+install_finish
