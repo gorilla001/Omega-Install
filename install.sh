@@ -16,6 +16,13 @@ else
     }	
 fi
 
+if [ -f /etc/os-release ];then
+    ID=$(. /etc/os-release && echo $ID)
+    if [ $ID == "centos" ];then
+        systemctl stop firewalld
+    fi
+fi 
+
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
 
