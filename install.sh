@@ -9,12 +9,15 @@
 # fi
 
 if [ -z "`which docker`" ]; then
-    curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
-else
-    [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && {
-   	curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
-    }	
+     curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
 fi
+# if [ -z "`which docker`" ]; then
+#     curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
+# else
+#     [ "$(docker --version | cut -d" " -f3 | tr -d ',')" != "1.9.1" ] && apt-get remove -y docker-engine && {
+#    	curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
+#     }	
+# fi
 
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
 PORT=8000
@@ -483,35 +486,43 @@ install_finish() {
     # echo "Enjoy."
 }
 
-pull_repositories
-install_redis
-install_rmq
-install_mysql
-install_influxdb
-install_elasticsearch
-install_logstash
+case $1 in
+    help)
+        echo "install.sh [ all | metrics ]" ;;
+    metrics)
+        build_metrics && start_metrics ;;
+    *) 
+	pull_repositories
+	install_redis
+	install_rmq
+	install_mysql
+	install_influxdb
+	install_elasticsearch
+	install_logstash
+	
+	build_harbor
+	start_harbor
+	
+	start_registry
+	
+	build_drone
+	start_drone
+	
+	build_cluster
+	build_app
+	build_metrics
+	build_logging
+	build_billing
+	build_alert
+	build_frontend
+	start_cluster
+	start_app
+	start_metrics
+	start_logging
+	start_billing
+	start_alert
+	start_frontend
+	install_cmdline_tools
+	install_finish
+esac
 
-build_harbor
-start_harbor
-
-start_registry
-
-build_drone
-start_drone
-
-build_cluster
-build_app
-build_metrics
-build_logging
-build_billing
-build_alert
-build_frontend
-start_cluster
-start_app
-start_metrics
-start_logging
-start_billing
-start_alert
-start_frontend
-install_cmdline_tools
-install_finish
