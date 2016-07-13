@@ -253,6 +253,7 @@ build_metrics() {
                     -w /usr/local/go/src/github.com/Dataman-Cloud/omega-metrics \
                     -e GOPATH="/usr/local/go" \
                     demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
+	# "yum install git -y && export PATH=$PATH:$GOPATH/bin && go get -u github.com/FiloSottile/gvt && gvt update && go get github.com/influxdata/influxdb/client/v2 && make build"
 	cd $base/src
         docker build -t omega-metrics:env -f omega-metrics/dockerfiles/Dockerfile_runtime .
 	cd ..
@@ -486,9 +487,40 @@ install_finish() {
     # echo "Enjoy."
 }
 
+show_usage() {
+	echo "Name:"
+	echo -e "  install.sh - dataman cloud install script"
+	echo
+	echo "Usage:"
+        echo -e "  ./install.sh [ all | base | metrics | alert | cluster | harbor | drone | logging | app | billing | frontend ]"
+	echo
+	echo "Commands:"
+	echo -e "  all         install all components"
+	echo -e "  base        install redis rmq mysql influxdb elasticsearch logstash"
+	echo -e "  metrics     rebuild omega-metrics"
+	echo -e "  alert       rebuild sryun-alert"
+	echo -e "  cluster     rebuild omega-cluster"
+	echo -e "  harbor      rebuild harbor"
+	echo -e "  drone       rebuild drone"
+	echo -e "  logging     rebuild omega-es"
+	echo -e "  app 	       rebuild omega-app"
+	echo -e "  billing     rebuild omega-billing"
+	echo -e "  frontend    rebuild frontend"
+	echo
+}
+
+
 case $1 in
     help)
-        echo "install.sh [ all | metrics ]" ;;
+	    show_usage ;;
+    base)
+	    install_redis
+	    install_rmq
+	    install_mysql
+	    install_influxdb
+	    install_elasticsearch
+	    install_logstash
+	    ;;
     metrics)
         build_metrics && start_metrics ;;
     alert)
@@ -497,7 +529,20 @@ case $1 in
 	build_cluster && start_cluster ;;
     frontend)
 	build_frontend && start_frontend ;;
+    harbor)
+	build_harbor && start_harbor ;;
+    drone)
+	build_drone && start_drone ;;
+    registry)
+	start_registry ;;
+    logging)
+	build_logging && start_logging ;;
+    app)
+	build_app && start_app ;;
+    billing)
+	build_billing && start_billing ;;
     all)
+	pull_repositories
 	install_redis
 	install_rmq
 	install_mysql
@@ -531,37 +576,6 @@ case $1 in
 	install_finish
 	;;
     *) 
-	pull_repositories
-	install_redis
-	install_rmq
-	install_mysql
-	install_influxdb
-	install_elasticsearch
-	install_logstash
-	
-	build_harbor
-	start_harbor
-	
-	start_registry
-	
-	build_drone
-	start_drone
-	
-	build_cluster
-	build_app
-	build_metrics
-	build_logging
-	build_billing
-	build_alert
-	build_frontend
-	start_cluster
-	start_app
-	start_metrics
-	start_logging
-	start_billing
-	start_alert
-	start_frontend
-	install_cmdline_tools
-	install_finish
+	show_usage ;;
 esac
 
