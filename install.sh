@@ -492,9 +492,10 @@ show_usage() {
 	echo -e "  install.sh - dataman cloud install script"
 	echo
 	echo "Usage:"
-        echo -e "  ./install.sh [ all | base | metrics | alert | cluster | harbor | drone | logging | app | billing | frontend ]"
+        echo -e "  ./install.sh [ help | all | base | metrics | alert | cluster | harbor | drone | logging | app | billing | frontend ]"
 	echo
 	echo "Commands:"
+	echo -e "  help        show usage"
 	echo -e "  all         install all components"
 	echo -e "  base        install redis rmq mysql influxdb elasticsearch logstash"
 	echo -e "  metrics     rebuild omega-metrics"
