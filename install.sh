@@ -491,6 +491,45 @@ case $1 in
         echo "install.sh [ all | metrics ]" ;;
     metrics)
         build_metrics && start_metrics ;;
+    alert)
+	build_alert && start_alert ;;
+    cluster)
+	build_cluster && start_cluster ;;
+    frontend)
+	build_frontend && start_frontend ;;
+    all)
+	install_redis
+	install_rmq
+	install_mysql
+	install_influxdb
+	install_elasticsearch
+	install_logstash
+	
+	build_harbor
+	start_harbor
+	
+	start_registry
+	
+	build_drone
+	start_drone
+	
+	build_cluster
+	build_app
+	build_metrics
+	build_logging
+	build_billing
+	build_alert
+	build_frontend
+	start_cluster
+	start_app
+	start_metrics
+	start_logging
+	start_billing
+	start_alert
+	start_frontend
+	install_cmdline_tools
+	install_finish
+	;;
     *) 
 	pull_repositories
 	install_redis
