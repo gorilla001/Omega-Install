@@ -9,7 +9,7 @@
 # fi
 
 if [ -z "`which docker`" ]; then
-     curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
+	curl -sSL https://get.docker.com/ | sh
 fi
 # if [ -z "`which docker`" ]; then
 #     curl -sSL https://coding.net/u/upccup/p/dm-agent-installer/git/raw/master/install-docker.sh | sh
@@ -86,6 +86,8 @@ install_elasticsearch() {
                    --restart=always \
                    -e ES_MIN_MEM=1024M \
                    -e ES_MAX_MEM=1024M \
+		   -p 9200:9200 \
+		   -p 9300:9300 \
                    demoregistry.dataman-inc.com/srypoc/centos7-jdk7-elasticsearch-1.4.5-alone:20160522230210
 }
 
@@ -95,6 +97,7 @@ install_logstash() {
         docker run -d \
                    --name=logstash \
                    --restart=always \
+		   -p 4999:4999 \
                    --link=elasticsearch \
                    -v $(pwd)/src/omega-es/third_party/logstash/dataman.conf:/etc/logstash/conf.d/dataman.conf:ro \
                    -v $(pwd)/src/omega-es/third_party/logstash/logstash.json:/usr/local/logstash/conf/logstash.json:ro \
@@ -123,6 +126,7 @@ start_harbor() {
 		   --link=redis \
 		   --link=mysql \
 		   --add-host=registry:${NET_IP} \
+		   -p 5005:5005 \
 		   -e MYSQL_HOST=mysql \
 		   -e MYSQL_PORT=3306 \
 		   -e MYSQL_USR=root \
@@ -146,6 +150,8 @@ start_registry() {
 		   --name=registry \
 		   --link=harbor \
 		   --restart=always \
+		   -p 5001:5001 \
+		   -p 5000:5000 \
 		   -v $(pwd)/src/harbor/Deploy/Omega/registry/:/etc/registry/ \
 		   demoregistry.dataman-inc.com/srypoc/registry:2.3.0 /etc/registry/config.yml
 }
@@ -170,6 +176,7 @@ start_drone() {
 		   --link=registry \
 		   --link=mysql \
 		   --link=harbor \
+		   -p 9898:9898 \
 		   -e SERVER_ADDR=0.0.0.0:9898 \
 	           -e REMOTE_DRIVER=sryun \
 	           -e REMOTE_CONFIG="https://omdev.riderzen.com:10080?open=true&skip_verify=true" \
@@ -222,6 +229,7 @@ build_app() {
                     -v $(pwd):/usr/local/go/src/github.com/Dataman-Cloud/omega-app \
                     -w /usr/local/go/src/github.com/Dataman-Cloud/omega-app \
                     -e GOPATH="/usr/local/go" \
+		    -e GO15VENDOREXPERIMENT=1 \
                     demoregistry.dataman-inc.com/library/centos7-go1.5.4:v0.1.061500 /bin/bash -c "make build"
 	install bin/omega-app ${base}/src/omega-app/ 
 	cd $base/src
@@ -455,8 +463,8 @@ start_frontend() {
 		   -e FRONTEND_ENVIRONMENT=dev \
 		   -e FRONTEND_OFFLINE=true \
 		   -e FRONTEND_LOCAL_DM_HOST=DM_HOST=ws://${NET_IP}:8000 \
-		   -e FRONTEND_OFFLINE=true \
 		   -e FRONTEND_LICENCEON=false \
+		   -e FRONTEND_IMAGE_BASE_URL=http://${NET_IP}:8000 \
 		   frontend:env
 }
 
