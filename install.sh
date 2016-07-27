@@ -8,6 +8,8 @@
 #     apt-get update && apt-get install -y python-pip
 # fi
 
+export LC_ALL=en_US.UTF-8
+
 if [ -z "`which docker`" ]; then
 	curl -sSL https://get.docker.com/ | sh
 fi
@@ -20,6 +22,7 @@ fi
 # fi
 
 NET_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
+# NET_IP=192.168.1.100
 PORT=8000
 
 pull_repositories() {
@@ -249,6 +252,8 @@ start_app() {
 		   --link=cluster \
 		   --env-file=$(pwd)/src/omega-app/deploy/env \
 	           -e APP_CLUSTER_HOST=cluster:8888 \
+		   -e APP_ALERT_HOST=192.168.1.59 \
+		   -e APP_ALERT_PORT=5012 \
 	           omega-app:env
 }
 
@@ -500,7 +505,7 @@ show_usage() {
 	echo -e "  install.sh - dataman cloud install script"
 	echo
 	echo "Usage:"
-        echo -e "  ./install.sh [ help | all | base | metrics | alert | cluster | harbor | drone | logging | app | billing | frontend ]"
+        echo -e "  ./install.sh command"
 	echo
 	echo "Commands:"
 	echo -e "  help        show usage"
@@ -551,7 +556,7 @@ case $1 in
     billing)
 	build_billing && start_billing ;;
     all)
-	pull_repositories
+	# pull_repositories
 	install_redis
 	install_rmq
 	install_mysql
